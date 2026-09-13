@@ -184,13 +184,6 @@ clave, valor
 | `EMAIL_CC_SOPORTE` | `dia.es.soporte.layouts@diagroup.com` | Copia de soporte configurable para confirmaciones. |
 | `NOMBRE_REMITENTE_EMAIL` | `Dia Layouts` | Nombre visible del remitente del correo. |
 | `ASUNTO_EMAIL` | `[Gestión equipos]-{{equipo}}-{{tipo_gestion}}- {{tienda}}-{{provincia}}-{{municipio}}-{{direccion}}` | Plantilla del asunto. Durante la transición se acepta `ASUNTO_EMAL` si no existe esta clave. |
-| `SALUDO_CONFIRMACION_EMAIL` | `Hola {{nombre}},` | Saludo del correo de confirmación. |
-| `TEXTO_CONFIRMACION_EMAIL` | `Tu solicitud ha quedado registrada con el identificador {{id_peticion}}.` | Frase principal del correo de confirmación. |
-| `PIE_CONFIRMACION_EMAIL` | `Este correo es una confirmación automática, no es necesario responder.` | Cierre del correo. |
-| `ASUNTO_SOLICITUD_ACCESO` | `Solicitud de acceso - Gestión de equipos de tienda` | Asunto del correo para pedir acceso. |
-| `CUERPO_SOLICITUD_ACCESO` | Saludo, petición y `{{email}}` | Cuerpo del correo para pedir acceso. |
-| `AVISO_COMENTARIOS` | `Por favor, redacta correctamente el contenido, ya que se enviará directamente al proveedor.` | Instrucción bajo Comentarios; se entrega al cliente tras autorizar. |
-| `MENSAJE_ERROR_TRANSPORTE_REGISTRO` | `No se pudo confirmar si la solicitud se registró. Comprueba si recibes el correo de confirmación antes de volver a intentarlo.` | Aviso ante un fallo de transporte cuya respuesta no permite saber si el alta terminó. |
 | `LIMITE_REGISTROS_DIARIOS_USUARIO` | `10` | Máximo de registros guardados por usuario y día de `Europe/Madrid`; entero positivo ampliable. |
 | `LIMITE_INTENTOS_REGISTRO_VENTANA` | `10` | Máximo de intentos de alta por usuario en cada ventana. |
 | `VENTANA_INTENTOS_REGISTRO_SEGUNDOS` | `600` | Duración de la ventana de intentos de alta. |
@@ -288,8 +281,8 @@ rechaza cualquier código no vacío que no cumpla el patrón, aunque la fila no 
 generar el ID o escribir el registro.
 `Comentarios` es siempre obligatorio, con un máximo de 2.000 caracteres verificado en cliente y
 servidor. Bajo el título aparece: «Por favor, redacta correctamente el contenido, ya que se
-enviará directamente al proveedor», con un contador `N / 2000` a su derecha. El aviso procede
-de `AVISO_COMENTARIOS` en `Sistema`. Antes de guardar
+enviará directamente al proveedor», con un contador `N / 2000` a su derecha. El aviso es texto
+fijo de la aplicación. Antes de guardar
 y enviar se eliminan líneas vacías, espacios repetidos y caracteres invisibles; se conservan
 saltos entre líneas con contenido. Los tres campos de tienda aceptan solo 1–5 dígitos.
 «Registrar solicitud» permanece desactivado hasta que todos los campos requeridos sean válidos
@@ -377,12 +370,9 @@ deshacer una solicitud ya guardada. Se eliminan saltos de línea del asunto.
 El correo de confirmación contiene `body` de texto plano y `htmlBody` con tarjeta centrada,
 cabecera DIA, estado de alta, tabla de datos y pie. No incluye el botón «Abrir la aplicación»,
 enlaces, recursos remotos, adjuntos ni datos de otras solicitudes. Solo se muestran campos con
-valor; el HTML escapa los datos y conserva los saltos de línea en Comentarios. El saludo, la frase
-principal y el cierre se leen de
-`SALUDO_CONFIRMACION_EMAIL`, `TEXTO_CONFIRMACION_EMAIL` y `PIE_CONFIRMACION_EMAIL`;
-los dos primeros admiten `{{nombre}}` y `{{id_peticion}}`, respectivamente.
-El correo de solicitud de acceso usa `ASUNTO_SOLICITUD_ACCESO` y
-`CUERPO_SOLICITUD_ACCESO`, que admite `{{email}}`.
+valor; el HTML escapa los datos y conserva los saltos de línea en Comentarios. El saludo, la frase principal y el cierre son textos fijos de la aplicación; incorporan el
+nombre del usuario y el identificador de la solicitud. El asunto y el cuerpo de la solicitud de
+acceso también son fijos e incorporan el email de la cuenta.
 
 ## 9. Interfaces públicas
 
@@ -465,8 +455,7 @@ Preparación inicial de una hoja:
 4. cargar y revisar los datos maestros de tiendas y elementos;
 5. completar `EMAIL_ADMIN`, `EMAIL_CC_SOPORTE` y los `email_destino`; revisar
    `NOMBRE_REMITENTE_EMAIL`, `ASUNTO_EMAIL` (o temporalmente `ASUNTO_EMAL`), `ENTORNO`,
-   `LIMITE_REGISTROS_DIARIOS_USUARIO`, los límites por ventana, los textos de correo,
-   `AVISO_COMENTARIOS`, `MENSAJE_ERROR_TRANSPORTE_REGISTRO` y la caché;
+   `LIMITE_REGISTROS_DIARIOS_USUARIO`, los límites por ventana y la caché;
 6. verificar roles y delegaciones con datos de prueba.
 
 Publicación:

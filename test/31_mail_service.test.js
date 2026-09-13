@@ -64,13 +64,13 @@ describe('31_mail_service', function () {
     expect(global.MailApp.sentEmails[0].name).toBe('Equipo Layouts');
   });
 
-  test('usa la introducción y el cierre configurados en Sistema', function () {
+  test('usa los textos fijos e ignora filas heredadas de Sistema', function () {
     resetMockSheets({
       Sistema: [
         ['clave', 'valor'],
-        ['SALUDO_CONFIRMACION_EMAIL', 'Estimada {{nombre}}:'],
-        ['TEXTO_CONFIRMACION_EMAIL', 'Referencia confirmada: {{id_peticion}}.'],
-        ['PIE_CONFIRMACION_EMAIL', 'Contacta con soporte si necesitas ayuda.']
+        ['SALUDO_CONFIRMACION_EMAIL', 'Texto heredado'],
+        ['TEXTO_CONFIRMACION_EMAIL', 'Texto heredado'],
+        ['PIE_CONFIRMACION_EMAIL', 'Texto heredado']
       ]
     });
     sendConfirmationEmail_(
@@ -78,12 +78,12 @@ describe('31_mail_service', function () {
       'SOL-20260910-0001', element, { tienda: '0001' }
     );
     const body = global.MailApp.sentEmails[0].body;
-    expect(body).toContain('Estimada Ana:');
-    expect(body).toContain('Referencia confirmada: SOL-20260910-0001.');
-    expect(body).toContain('Contacta con soporte si necesitas ayuda.');
-    expect(body).not.toContain(MAIL_DEFAULTS.CONFIRMATION_FOOTER);
-    expect(global.MailApp.sentEmails[0].htmlBody).toContain('Estimada Ana:');
-    expect(global.MailApp.sentEmails[0].htmlBody).toContain('Contacta con soporte si necesitas ayuda.');
+    expect(body).toContain('Hola Ana,');
+    expect(body).toContain('Tu solicitud ha quedado registrada con el identificador SOL-20260910-0001.');
+    expect(body).toContain(MAIL_DEFAULTS.CONFIRMATION_FOOTER);
+    expect(body).not.toContain('Texto heredado');
+    expect(global.MailApp.sentEmails[0].htmlBody).toContain('Hola Ana,');
+    expect(global.MailApp.sentEmails[0].htmlBody).toContain(MAIL_DEFAULTS.CONFIRMATION_FOOTER);
   });
 
   test('el HTML escapa datos del formulario y conserva los saltos de línea sin ejecutar etiquetas', function () {

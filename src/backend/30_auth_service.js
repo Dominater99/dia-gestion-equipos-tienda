@@ -36,12 +36,8 @@ function checkAccess() {
       authorized: false,
       email: email,
       adminEmail: systemParams[SYSTEM_PARAM_KEYS.ADMIN_EMAIL] || '',
-      accessRequestSubject: textSystemParam_(
-        systemParams, SYSTEM_PARAM_KEYS.ACCESS_REQUEST_SUBJECT, MAIL_DEFAULTS.ACCESS_REQUEST_SUBJECT
-      ).replace(/[\r\n]+/g, ' '),
-      accessRequestBody: textSystemParam_(
-        systemParams, SYSTEM_PARAM_KEYS.ACCESS_REQUEST_BODY, MAIL_DEFAULTS.ACCESS_REQUEST_BODY
-      ).replace(/{{email}}/g, email)
+      accessRequestSubject: MAIL_DEFAULTS.ACCESS_REQUEST_SUBJECT.replace(/[\r\n]+/g, ' '),
+      accessRequestBody: MAIL_DEFAULTS.ACCESS_REQUEST_BODY.replace(/{{email}}/g, email)
     };
   }
 
@@ -55,13 +51,8 @@ function checkAccess() {
       delegacion: currentUser.delegacion
     },
     uiText: {
-      commentsHint: textSystemParam_(
-        systemParams, SYSTEM_PARAM_KEYS.COMMENTS_HINT, UI_TEXT_DEFAULTS.COMMENTS_HINT
-      ),
-      submissionTransportFailure: textSystemParam_(
-        systemParams, SYSTEM_PARAM_KEYS.SUBMISSION_TRANSPORT_FAILURE,
-        UI_TEXT_DEFAULTS.SUBMISSION_TRANSPORT_FAILURE
-      )
+      commentsHint: UI_TEXT_DEFAULTS.COMMENTS_HINT,
+      submissionTransportFailure: UI_TEXT_DEFAULTS.SUBMISSION_TRANSPORT_FAILURE
     },
     elements: getActiveElements_(cacheConfig)
   };

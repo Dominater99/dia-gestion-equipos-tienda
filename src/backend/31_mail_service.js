@@ -54,8 +54,8 @@ function sendConfirmationEmail_(currentUser, idPeticion, element, payload, syste
     element,
     payload
   );
-  const body = buildConfirmationEmailBody_(currentUser, idPeticion, element, payload, params);
-  const htmlBody = buildConfirmationEmailHtml_(currentUser, idPeticion, element, payload, params);
+  const body = buildConfirmationEmailBody_(currentUser, idPeticion, element, payload);
+  const htmlBody = buildConfirmationEmailHtml_(currentUser, idPeticion, element, payload);
 
   MailApp.sendEmail({
     to: normalizeSingleEmail_(currentUser.email, 'email del usuario'),
@@ -111,23 +111,12 @@ function buildConfirmationSubject_(template, element, payload) {
   return subject.replace(/[\r\n\u0000-\u001F\u007F]+/g, ' ').replace(/ {2,}/g, ' ').trim();
 }
 
-/** Resuelve una vez los textos configurables, compartidos por ambos formatos. */
-function confirmationCopy_(currentUser, idPeticion, systemParams) {
-  const params = systemParams || {};
-  const greetingTemplate = textSystemParam_(
-    params, SYSTEM_PARAM_KEYS.MAIL_CONFIRMATION_GREETING, MAIL_DEFAULTS.CONFIRMATION_GREETING
-  );
-  const greeting = greetingTemplate.replace(/{{nombre}}/g, String(currentUser.nombre || ''));
-  if (/{{|}}/.test(greeting)) throw new Error('El saludo del correo contiene marcadores inválidos.');
-  const introTemplate = textSystemParam_(
-    params, SYSTEM_PARAM_KEYS.MAIL_CONFIRMATION_INTRO, MAIL_DEFAULTS.CONFIRMATION_INTRO
-  );
-  const intro = introTemplate.replace(/{{id_peticion}}/g, idPeticion);
-  if (/{{|}}/.test(intro)) throw new Error('El texto de confirmación contiene marcadores inválidos.');
-  const footer = textSystemParam_(
-    params, SYSTEM_PARAM_KEYS.MAIL_CONFIRMATION_FOOTER, MAIL_DEFAULTS.CONFIRMATION_FOOTER
-  );
-  return { greeting: greeting, intro: intro, footer: footer };
+/** Resuelve una vez los textos fijos compartidos por ambos formatos. */
+function confirmationCopy_(currentUser, idPeticion) {
+  const greeting = MAIL_DEFAULTS.CONFIRMATION_GREETING
+    .replace(/{{nombre}}/g, String(currentUser.nombre || ''));
+  const intro = MAIL_DEFAULTS.CONFIRMATION_INTRO.replace(/{{id_peticion}}/g, idPeticion);
+  return { greeting: greeting, intro: intro, footer: MAIL_DEFAULTS.CONFIRMATION_FOOTER };
 }
 
 function confirmationFields_(element, payload) {
@@ -148,8 +137,8 @@ function confirmationFields_(element, payload) {
   ].filter(function (entry) { return entry[1] !== null && entry[1] !== undefined && entry[1] !== ''; });
 }
 
-function buildConfirmationEmailBody_(currentUser, idPeticion, element, payload, systemParams) {
-  const copy = confirmationCopy_(currentUser, idPeticion, systemParams);
+function buildConfirmationEmailBody_(currentUser, idPeticion, element, payload) {
+  const copy = confirmationCopy_(currentUser, idPeticion);
   const fields = confirmationFields_(element, payload).map(function (entry) {
     return entry[0] + entry[1];
   });
@@ -170,8 +159,8 @@ function mailHtmlText_(value) {
 }
 
 /** Tarjeta HTML autocontenida, compatible con el cuerpo de texto plano. */
-function buildConfirmationEmailHtml_(currentUser, idPeticion, element, payload, systemParams) {
-  const copy = confirmationCopy_(currentUser, idPeticion, systemParams);
+function buildConfirmationEmailHtml_(currentUser, idPeticion, element, payload) {
+  const copy = confirmationCopy_(currentUser, idPeticion);
   const fields = [[MAIL_HTML_TEXT.REQUEST_ID, idPeticion]].concat(
     confirmationFields_(element, payload).map(function (entry) {
       return [entry[0].replace(/:\s*$/, ''), entry[1]];

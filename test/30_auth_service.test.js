@@ -65,16 +65,18 @@ describe('30_auth_service', function () {
     expect(result.adminEmail).toBe('admin@diagroup.com');
   });
 
-  test('la solicitud de acceso usa asunto y cuerpo configurados en Sistema', function () {
+  test('la solicitud de acceso usa el texto fijo e ignora filas heredadas de Sistema', function () {
     const sheet = getSheet_(SHEET_NAMES.SISTEMA);
-    sheet.appendRow(['ASUNTO_SOLICITUD_ACCESO', 'Acceso a Layouts']);
-    sheet.appendRow(['CUERPO_SOLICITUD_ACCESO', 'Alta para {{email}}']);
+    sheet.appendRow(['ASUNTO_SOLICITUD_ACCESO', 'Texto heredado']);
+    sheet.appendRow(['CUERPO_SOLICITUD_ACCESO', 'Texto heredado para {{email}}']);
     global.Session.getActiveUser = function () {
       return { getEmail: function () { return 'ines@diagroup.com'; } };
     };
     const result = checkAccess();
-    expect(result.accessRequestSubject).toBe('Acceso a Layouts');
-    expect(result.accessRequestBody).toBe('Alta para ines@diagroup.com');
+    expect(result.accessRequestSubject).toBe(MAIL_DEFAULTS.ACCESS_REQUEST_SUBJECT);
+    expect(result.accessRequestBody).toBe(
+      MAIL_DEFAULTS.ACCESS_REQUEST_BODY.replace(/{{email}}/g, 'ines@diagroup.com')
+    );
   });
 
   test('checkAccess devuelve authorized=true y solo los elementos ACTIVE, sin exponer Tiendas', function () {
@@ -93,17 +95,17 @@ describe('30_auth_service', function () {
     expect(result.uiText.submissionTransportFailure).toBe(UI_TEXT_DEFAULTS.SUBMISSION_TRANSPORT_FAILURE);
   });
 
-  test('los textos de interfaz se entregan desde Sistema al usuario autorizado', function () {
-    getSheet_(SHEET_NAMES.SISTEMA).appendRow(['AVISO_COMENTARIOS', 'Texto revisado por negocio.']);
+  test('los textos de interfaz son fijos e ignoran filas heredadas de Sistema', function () {
+    getSheet_(SHEET_NAMES.SISTEMA).appendRow(['AVISO_COMENTARIOS', 'Texto heredado.']);
     getSheet_(SHEET_NAMES.SISTEMA).appendRow([
-      'MENSAJE_ERROR_TRANSPORTE_REGISTRO', 'Comprueba el correo antes de repetir.'
+      'MENSAJE_ERROR_TRANSPORTE_REGISTRO', 'Texto heredado.'
     ]);
     global.Session.getActiveUser = function () {
       return { getEmail: function () { return 'ana@diagroup.com'; } };
     };
     const uiText = checkAccess().uiText;
-    expect(uiText.commentsHint).toBe('Texto revisado por negocio.');
-    expect(uiText.submissionTransportFailure).toBe('Comprueba el correo antes de repetir.');
+    expect(uiText.commentsHint).toBe(UI_TEXT_DEFAULTS.COMMENTS_HINT);
+    expect(uiText.submissionTransportFailure).toBe(UI_TEXT_DEFAULTS.SUBMISSION_TRANSPORT_FAILURE);
   });
 
   test('checkAccess rechaza un rol que no pertenece a la lista cerrada', function () {
