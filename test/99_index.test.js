@@ -46,6 +46,7 @@ describe('99_index - contrato visual y accesible', function () {
       doGet();
       expect(requestedName).toBe('frontend/99_index');
       expect(template.applicationTimeZone).toBe('Europe/Madrid');
+      expect(template.logoUrl).toBe(BRAND_ASSETS.LOGO_URL);
       expect(template.commentMaxLength).toBe(MAX_COMMENT_LENGTH);
       expect(template.storeIdMaxLength).toBe(STORE_ID_MAX_LENGTH);
       expect(template.serviceNowDigits).toBe(SERVICE_NOW_DIGITS);
@@ -84,7 +85,11 @@ describe('99_index - contrato visual y accesible', function () {
   test('sitúa la marca DIA a la izquierda, las iniciales a la derecha y la versión en el footer', function () {
     expect(html).toContain('<span class="app-header__brand">');
     expect(html).not.toContain('brandWebsiteUrl');
-    expect(html).toContain('src="data:image/png;base64,');
+    expect(html).toContain('src="<?= logoUrl ?>"');
+    expect(html).not.toContain('data:image/');
+    expect(BRAND_ASSETS.LOGO_URL).toBe(
+      'https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg'
+    );
     expect(html).toContain('id="headerUserInitials"');
     expect(html).toContain('renderHeaderUser(appState.user)');
     expect(html).toContain('<?= applicationName ?> - <?= applicationVersion ?>');

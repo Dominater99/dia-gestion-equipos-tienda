@@ -18,7 +18,6 @@ const MAIL_HTML_THEME = Object.freeze({
 });
 
 const MAIL_HTML_TEXT = Object.freeze({
-  LOGO: 'Dia',
   STATUS: 'SOLICITUD REGISTRADA',
   DETAILS: 'DATOS DE LA SOLICITUD',
   REQUEST_ID: 'ID solicitud'
@@ -184,10 +183,10 @@ function buildConfirmationEmailHtml_(currentUser, idPeticion, element, payload) 
     'style="max-width:560px;background:' + MAIL_HTML_THEME.surface + ';border:1px solid ' +
     MAIL_HTML_THEME.border + ';border-radius:14px;">' +
     '<tr><td style="padding:13px 16px;border-bottom:1px solid ' + MAIL_HTML_THEME.border +
-    ';text-align:left;"><span style="display:inline-block;padding:7px 8px;border-radius:5px;' +
-    'background:' + MAIL_HTML_THEME.primary + ';color:#ffffff;font-size:16px;font-weight:700;">' +
-    escapeMailHtml_(MAIL_HTML_TEXT.LOGO) + '</span><span style="padding-left:9px;color:' +
-    MAIL_HTML_THEME.heading + ';font-size:12px;font-weight:700;">' +
+    ';text-align:left;"><img src="' + escapeMailHtml_(BRAND_ASSETS.LOGO_URL) +
+    '" width="56" height="31" alt="DIA" style="display:inline-block;width:56px;height:31px;' +
+    'border:0;vertical-align:middle;"><span style="padding-left:9px;color:' +
+    MAIL_HTML_THEME.heading + ';font-size:12px;font-weight:700;vertical-align:middle;">' +
     escapeMailHtml_(APP_METADATA.NAME) + '</span></td></tr>' +
     '<tr><td style="padding:28px 18px 30px;text-align:center;">' +
     '<span style="display:inline-block;padding:12px 17px;border-radius:50%;background:' +

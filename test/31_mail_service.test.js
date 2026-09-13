@@ -43,6 +43,8 @@ describe('31_mail_service', function () {
     expect(sent.htmlBody).toContain('SOLICITUD REGISTRADA');
     expect(sent.htmlBody).toContain('DATOS DE LA SOLICITUD');
     expect(sent.htmlBody).toContain('SOL-20260910-0001');
+    expect(sent.htmlBody).toContain('<img src="' + BRAND_ASSETS.LOGO_URL + '"');
+    expect(sent.htmlBody).toContain('width="56" height="31" alt="DIA"');
     expect(sent.htmlBody).not.toMatch(/<button\b|Abrir la aplicación|<a\b/i);
   });
 
@@ -95,7 +97,7 @@ describe('31_mail_service', function () {
     expect(html).toContain('Ana &lt;Prueba&gt;');
     expect(html).toContain('0001 &amp; Centro');
     expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;<br>Segunda línea');
-    expect(html).not.toContain('<img');
+    expect(html).not.toContain('<img src=x onerror=alert(1)>');
     expect(html).not.toContain('Abrir la aplicación');
   });
 

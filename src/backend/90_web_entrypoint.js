@@ -10,6 +10,7 @@ function doGet() {
   const template = HtmlService.createTemplateFromFile('frontend/99_index');
   template.applicationName = APP_METADATA.NAME;
   template.applicationVersion = APP_METADATA.VERSION;
+  template.logoUrl = BRAND_ASSETS.LOGO_URL;
   template.applicationTimeZone = Session.getScriptTimeZone();
   template.commentMaxLength = MAX_COMMENT_LENGTH;
   template.commentMaxLengthDisplay = formatCount_(MAX_COMMENT_LENGTH);

@@ -194,11 +194,8 @@ clave, valor
 `Sistema` se crea y mantiene manualmente; la aplicación no dispone de `setupSistema` ni añade
 parámetros ausentes. Nombre y versión de la aplicación viven solo en `APP_METADATA`, no en esta
 pestaña. `ULTIMO_ID_PETICION` es una propiedad de script, no una fila de `Sistema`.
-La primera alta inicializa el contador para emitir primero el ID 2.
-Si existe una fila legada, migra su valor bajo bloqueo: guarda el mayor entre 1, la propiedad
-y la fila existente, y solo después eliminan esa fila exacta. Si hay filas duplicadas o un valor
-inválido, se detienen para revisión. `ULTIMO_ID_PETICION_MIGRADO=TRUE` evita releer `Sistema`
-bajo bloqueo en las altas siguientes.
+La primera alta inicializa el contador para emitir primero el ID 1; cada alta posterior incrementa
+esa única propiedad dentro del mismo bloqueo que protege la escritura en `Registros`.
 No edites el contador mientras haya usuarios registrando solicitudes. Si falta una clave de caché,
 se aplican `TRUE`, 5 y 100 segundos como valores predeterminados. La caché de script almacena
 maestros reconstruibles, por fragmentos, no credenciales, y la configuración se invalida al
@@ -298,7 +295,7 @@ prueba de paridad impide que ambas implementaciones diverjan.
 ## 7. Identificadores, persistencia y concurrencia
 
 Cada alta recibe un ID `SOL-AAAAMMDD-NNNN`; el primero de una instalación nueva termina en
-`0002`. El correlativo procede de la propiedad de script `ULTIMO_ID_PETICION`. Bajo un único `LockService.getScriptLock()`,
+`0001`. El correlativo procede de la propiedad de script `ULTIMO_ID_PETICION`. Bajo un único `LockService.getScriptLock()`,
 el servidor cuenta registros del día, asigna el ID y escribe
 la fila. Hace `SpreadsheetApp.flush()` antes de liberar el bloqueo.
 
@@ -318,8 +315,7 @@ persistido.
 Al abrir una ventana, el limitador lee `Sistema` bajo bloqueo y guarda el umbral y la duración
 en su estado de Script Properties. Esa lectura se reutiliza en el resto del flujo. Los intentos
 posteriores de la misma ventana usan ese estado; los bloqueados no leen hojas ni escriben
-registros o correos. La primera alta tras desplegar puede hacer otra lectura para migrar el
-contador legado.
+registros o correos.
 
 `submitRequest` exige una identidad de `Session.getActiveUser()` y consume un intento en una
 ventana por email normalizado. Los valores iniciales son diez intentos en diez minutos; el
@@ -369,8 +365,9 @@ contiene origen y destino. Los marcadores no admitidos provocan fallo de notific
 deshacer una solicitud ya guardada. Se eliminan saltos de línea del asunto.
 
 El correo de confirmación contiene `body` de texto plano y `htmlBody` con tarjeta centrada,
-cabecera DIA, estado de alta, tabla de datos y pie. No incluye el botón «Abrir la aplicación»,
-enlaces, recursos remotos, adjuntos ni datos de otras solicitudes. Solo se muestran campos con
+cabecera DIA, estado de alta, tabla de datos y pie. La cabecera carga el logo oficial desde
+`https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg`. No incluye el botón «Abrir la aplicación», enlaces, otros recursos remotos,
+adjuntos ni datos de otras solicitudes. Solo se muestran campos con
 valor; el HTML escapa los datos y conserva los saltos de línea en Comentarios. El saludo, la frase principal y el cierre son textos fijos de la aplicación; incorporan el
 nombre del usuario y el identificador de la solicitud. El asunto y el cuerpo de la solicitud de
 acceso también son fijos e incorporan el email de la cuenta.
@@ -413,15 +410,15 @@ su base accesible. `00_styles.html` contiene la adaptación visual de este proye
 | Radio de control | `.5rem` |
 | Radio de tarjeta | `.75rem` |
 
-La cabecera es blanca, compacta y fija; a la izquierda muestra el logo DIA sin enlace
-facilitado y a la derecha muestra las iniciales de la persona autenticada. El footer muestra
+La cabecera es blanca, compacta y fija; a la izquierda muestra sin enlace el logo DIA cargado
+desde `https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg` y a la derecha muestra las iniciales de la persona autenticada. El footer muestra
 `Gestión de equipos de tienda - 1.0.0`. El nombre y la versión proceden de `APP_METADATA`;
 no existe una clave `VERSION` en `Sistema`.
 Las iniciales se derivan del email cuando contiene nombre y apellido separados por coma,
 punto, guion o subrayado; `david,rincon@diagroup.com` muestra `DR`.
 Botones,
 tarjetas, campos, overlay y diálogo comparten tamaños, radios, sombras y estados con el resto de
-aplicaciones. No se carga ninguna fuente, icono o librería remota. Las clases siguen BEM práctico,
+aplicaciones. Fuera del logo oficial no se carga ninguna fuente, icono o librería remota. Las clases siguen BEM práctico,
 los controles son nativos, el foco es visible y el resultado usa `<dialog>`. Se contemplan
 teclado, `prefers-reduced-motion`, colores forzados, errores asociados y bloqueo del doble envío.
 La tarjeta validada reproduce el componente `modification-store-card` de `diaformlayouts`, con

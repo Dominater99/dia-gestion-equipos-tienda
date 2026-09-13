@@ -145,49 +145,38 @@ describe('RequestService - fechas futuras', function () {
 });
 
 describe('RequestService - generateRequestId_', function () {
-  test('empieza por el ID 2 sin modificar Sistema y conserva el correlativo', function () {
+  test('empieza por el ID 1 sin modificar Sistema y conserva el correlativo', function () {
     const systemRows = [['clave', 'valor'], ['ENTORNO', 'PROD']];
     const sheets = resetMockSheets({ Sistema: systemRows });
 
+    expect(generateRequestId_()).toMatch(/^SOL-\d{8}-0001$/);
+    expect(PropertiesService.getScriptProperties().getProperty('ULTIMO_ID_PETICION')).toBe('1');
     expect(generateRequestId_()).toMatch(/^SOL-\d{8}-0002$/);
-    expect(PropertiesService.getScriptProperties().getProperty('ULTIMO_ID_PETICION')).toBe('2');
-    expect(generateRequestId_()).toMatch(/^SOL-\d{8}-0003$/);
     expect(sheets.Sistema._getRawValues()).toEqual(systemRows);
   });
 
-  test('un contador anterior a 2 no emite el ID 1', function () {
+  test('incrementa el valor existente de forma monotónica', function () {
     resetMockSheets({ Sistema: [['clave', 'valor']] });
-    PropertiesService.getScriptProperties().setProperty('ULTIMO_ID_PETICION', '0');
-
-    expect(generateRequestId_()).toMatch(/^SOL-\d{8}-0002$/);
-  });
-
-  test('migra el contador de Sistema y lo incrementa en Script Properties sin perder continuidad', function () {
-    const sheets = resetMockSheets({
-      Sistema: [['clave', 'valor'], ['EMAIL_ADMIN', 'admin@diagroup.com'], ['ULTIMO_ID_PETICION', 3]]
-    });
-
-    const id = generateRequestId_();
-
-    expect(id).toMatch(/^SOL-\d{8}-0004$/);
-    expect(PropertiesService.getScriptProperties().getProperty('ULTIMO_ID_PETICION')).toBe('4');
-    expect(sheets.Sistema._getRawValues()).toEqual([
-      ['clave', 'valor'], ['EMAIL_ADMIN', 'admin@diagroup.com']
-    ]);
-    expect(generateRequestId_()).toMatch(/^SOL-\d{8}-0005$/);
-    expect(PropertiesService.getScriptProperties().getProperty('ULTIMO_ID_PETICION_MIGRADO'))
-      .toBe('TRUE');
-  });
-
-  test('prefiere el contador mayor y no borra una fila legado duplicada', function () {
-    const sheets = resetMockSheets({
-      Sistema: [['clave', 'valor'], ['ULTIMO_ID_PETICION', 3], ['ULTIMO_ID_PETICION', 4]]
-    });
     PropertiesService.getScriptProperties().setProperty('ULTIMO_ID_PETICION', '9');
 
-    expect(function () { generateRequestId_(); }).toThrow(/varias filas/);
-    expect(sheets.Sistema._getRawValues()).toHaveLength(3);
-    expect(PropertiesService.getScriptProperties().getProperty('ULTIMO_ID_PETICION')).toBe('9');
+    expect(generateRequestId_()).toMatch(/^SOL-\d{8}-0010$/);
+  });
+
+  test('usa solo ULTIMO_ID_PETICION de Script Properties', function () {
+    const systemRows = [['clave', 'valor'], ['EMAIL_ADMIN', 'admin@diagroup.com']];
+    const sheets = resetMockSheets({ Sistema: systemRows });
+    PropertiesService.getScriptProperties().setProperty('ULTIMO_ID_PETICION', '3');
+
+    expect(generateRequestId_()).toMatch(/^SOL-\d{8}-0004$/);
+    expect(PropertiesService.getScriptProperties().getProperty('ULTIMO_ID_PETICION')).toBe('4');
+    expect(sheets.Sistema._getRawValues()).toEqual(systemRows);
+  });
+
+  test('rechaza un contador guardado con formato inválido', function () {
+    resetMockSheets({ Sistema: [['clave', 'valor']] });
+    PropertiesService.getScriptProperties().setProperty('ULTIMO_ID_PETICION', 'sin-numero');
+
+    expect(function () { generateRequestId_(); }).toThrow(/contador.*Script Properties/);
   });
 });
 
@@ -236,7 +225,7 @@ describe('RequestService - submitRequest', function () {
     });
 
     expect(result.success).toBe(true);
-    expect(result.idPeticion).toMatch(/^SOL-\d{8}-0002$/);
+    expect(result.idPeticion).toMatch(/^SOL-\d{8}-0001$/);
 
     const filaGrabada = sheets.Registros._getRawValues()[1];
     expect(filaGrabada).toHaveLength(21);
@@ -727,7 +716,7 @@ describe('RequestService - submitRequest', function () {
     expect(events).toHaveLength(11); // diez rechazos normales y un único aviso de límite
   });
 
-  test('lee Sistema una vez por alta tras migrar el contador si la caché está desactivada', function () {
+  test('lee Sistema una vez por alta con la caché desactivada', function () {
     const sheets = buildFixtures('ACTIVO', 'ACTIVE');
     sheets.Sistema._getRawValues().push(['CACHE_HABILITADA', false]);
     const originalGetDataRange = sheets.Sistema.getDataRange;
@@ -742,11 +731,11 @@ describe('RequestService - submitRequest', function () {
 
     expect(submitRequest({ idElemento: 'CAF-RETIRADA', tienda: '0001', comentarios: 'Primera solicitud.' }).success)
       .toBe(true);
-    expect(reads).toBe(2); // configuración + comprobación única de migración
+    expect(reads).toBe(1);
 
     expect(submitRequest({ idElemento: 'CAF-RETIRADA', tienda: '0001', comentarios: 'Segunda solicitud.' }).success)
       .toBe(true);
-    expect(reads).toBe(3); // solo configuración; no se relee el contador legado
+    expect(reads).toBe(2);
   });
 
   test('un fallo de Logs no convierte en fallida una solicitud ya guardada', function () {

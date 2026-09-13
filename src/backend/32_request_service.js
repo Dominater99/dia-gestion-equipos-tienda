@@ -434,55 +434,16 @@ function generateRequestId_() {
 
 function generateRequestIdWithinLock_() {
   const properties = PropertiesService.getScriptProperties();
-  const lastCounter = Math.max(REQUEST_COUNTER_INITIAL_VALUE, migrateRequestCounter_(properties));
-  const newCounter = lastCounter + 1;
+  const storedCounter = parseRequestCounter_(
+    properties.getProperty(SCRIPT_PROPERTY_KEYS.REQUEST_COUNTER), 'Script Properties'
+  );
+  const newCounter = Math.max(REQUEST_COUNTER_INITIAL_VALUE, storedCounter) + 1;
   if (!Number.isSafeInteger(newCounter)) {
     throw new Error('El contador de peticiones ha alcanzado su límite seguro.');
   }
   properties.setProperty(SCRIPT_PROPERTY_KEYS.REQUEST_COUNTER, String(newCounter));
   const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd');
   return REQUEST_ID_PREFIX + '-' + today + '-' + String(newCounter).padStart(REQUEST_ID_MIN_DIGITS, '0');
-}
-
-/**
- * Migra el contador legado de Sistema a Script Properties. Debe llamarse
- * siempre bajo LockService. Primero persiste el valor más alto y solo después
- * elimina la fila exacta de Sistema, sin tocar ninguna otra configuración.
- * @param {GoogleAppsScript.Properties.Properties} properties
- * @returns {number}
- */
-function migrateRequestCounter_(properties, forceCheck) {
-  const propertyValue = properties.getProperty(SCRIPT_PROPERTY_KEYS.REQUEST_COUNTER);
-  if (!forceCheck && properties.getProperty(SCRIPT_PROPERTY_KEYS.COUNTER_MIGRATED) === 'TRUE') {
-    return parseRequestCounter_(propertyValue, 'Script Properties');
-  }
-  const sheet = getSheet_(SHEET_NAMES.SISTEMA);
-  const values = sheet.getDataRange().getValues();
-  const legacyRows = [];
-  for (let i = 1; i < values.length; i++) {
-    if (String(values[i][0]).trim() === SYSTEM_PARAM_KEYS.LEGACY_COUNTER) {
-      legacyRows.push({ rowNumber: i + 1, value: values[i][1] });
-    }
-  }
-  if (legacyRows.length > 1) {
-    throw new Error('Hay varias filas del contador legado en Sistema; revisa la migración antes de registrar.');
-  }
-
-  const currentCounter = parseRequestCounter_(propertyValue, 'Script Properties');
-  const legacyCounter = legacyRows.length
-    ? parseRequestCounter_(legacyRows[0].value, 'Sistema')
-    : 0;
-  const counter = Math.max(REQUEST_COUNTER_INITIAL_VALUE, currentCounter, legacyCounter);
-  if (propertyValue === null || counter !== currentCounter) {
-    properties.setProperty(SCRIPT_PROPERTY_KEYS.REQUEST_COUNTER, String(counter));
-  }
-  if (legacyRows.length) {
-    sheet.deleteRow(legacyRows[0].rowNumber);
-    SpreadsheetApp.flush();
-    removeCachedJson_(CACHE_KEYS.SYSTEM);
-  }
-  properties.setProperty(SCRIPT_PROPERTY_KEYS.COUNTER_MIGRATED, 'TRUE');
-  return counter;
 }
 
 function parseRequestCounter_(value, source) {
@@ -546,7 +507,6 @@ if (typeof module !== 'undefined') {
     registerRequest_,
     generateRequestId_,
     generateRequestIdWithinLock_,
-    migrateRequestCounter_,
     parseRequestCounter_,
     buildRegistroRow_
   };
