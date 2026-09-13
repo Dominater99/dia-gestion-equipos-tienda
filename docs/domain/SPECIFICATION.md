@@ -242,11 +242,12 @@ solo el primer intento bloqueado de cada ventana añade `LIMITE_ENVIOS_EXCEDIDO`
 no escriben en la hoja para evitar amplificación. Un estado corrupto del limitador de envíos
 añade `ESTADO_LIMITE_INVALIDO`; solo si ese evento queda registrado se elimina el valor corrupto
 observado para que el siguiente intento pueda abrir una ventana nueva. `email` identifica al solicitante;
-`id_solicitud` contiene el ID si llegó a generarse; `mensaje` es un texto fijo por evento y
-`contexto` indica la etapa del flujo y, en un fallo de correo, el `id_elemento`. No se guardan
-excepciones, tiendas, comentarios, asunto ni
-destinatarios. Si falta la
-pestaña, el primer evento la crea bajo `LockService`.
+`id_solicitud` contiene el ID si llegó a generarse y `mensaje` es un texto fijo por evento.
+`contexto` es un objeto JSON de hasta 1.000 caracteres con `etapa` y, cuando ya se ha resuelto el
+elemento, `idElemento`, `equipo`, `proveedor`, `tipoGestion` y `subtipo`; los valores vacíos se
+omiten. En registros completados incluye `notificacionEnviada`. No se guardan excepciones,
+tienda, comentarios, fechas, códigos ServiceNow, asunto ni destinatarios. Si falta la pestaña, el
+primer evento la crea bajo `LockService`.
 Un fallo del logger se comunica en la consola con un mensaje estático y no cambia el resultado
 del alta. `Logs` hereda los permisos del libro. Su limpieza la realiza manualmente el
 responsable cada día; la aplicación no borra ni archiva registros automáticamente.

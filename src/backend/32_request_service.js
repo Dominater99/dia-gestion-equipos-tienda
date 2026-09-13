@@ -22,6 +22,7 @@ function submitRequest(payload) {
   let stage = 'IDENTIDAD';
   let idPeticion = null;
   let email = '';
+  let element = null;
   try {
     email = Session.getActiveUser().getEmail();
     if (!email) throw publicError_('No se ha podido identificar al usuario.');
@@ -43,7 +44,7 @@ function submitRequest(payload) {
     }
 
     stage = 'ELEMENTO';
-    const element = getElementById_(payload.idElemento, cacheConfig);
+    element = getElementById_(payload.idElemento, cacheConfig);
     if (!element || String(element.estado).toUpperCase() !== ESTADO_ELEMENTO.ACTIVE) {
       throw publicError_('La opción seleccionada ya no está disponible. Vuelve a la pantalla de inicio e inténtalo de nuevo.');
     }
@@ -69,7 +70,7 @@ function submitRequest(payload) {
     logAppEventSafely_(
       notificationSent ? LOG_EVENTS.REQUEST_REGISTERED : LOG_EVENTS.MAIL_FAILED,
       idPeticion,
-      notificationSent ? stage : stage + '|id_elemento=' + String(element.id_elemento || ''),
+      buildRequestLogContext_(stage, element, notificationSent),
       email
     );
 
@@ -87,7 +88,9 @@ function submitRequest(payload) {
     logRequestFailure_(stage, error);
     // Los reintentos bloqueados no deben amplificar escrituras en Logs.
     if (error && error.isCorruptRateState) {
-      if (logAppEventSafely_(LOG_EVENTS.RATE_LIMIT_STATE_INVALID, null, stage, email)) {
+      if (logAppEventSafely_(
+        LOG_EVENTS.RATE_LIMIT_STATE_INVALID, null, buildRequestLogContext_(stage, element), email
+      )) {
         try {
           clearCorruptRateState_(error);
         } catch (cleanupError) {
@@ -95,10 +98,16 @@ function submitRequest(payload) {
         }
       }
     } else if (error && error.isRateLimit) {
-      if (error.logRateLimit) logAppEventSafely_(LOG_EVENTS.RATE_LIMIT_EXCEEDED, null, stage, email);
+      if (error.logRateLimit) {
+        logAppEventSafely_(
+          LOG_EVENTS.RATE_LIMIT_EXCEEDED, null, buildRequestLogContext_(stage, element), email
+        );
+      }
     } else if (stage !== 'IDENTIDAD' && stage !== 'LIMITE_ENVIOS') {
       // Un fallo de la barrera no debe añadir una escritura de Sheets por reintento.
-      logAppEventSafely_(LOG_EVENTS.REQUEST_REJECTED, idPeticion, stage, email);
+      logAppEventSafely_(
+        LOG_EVENTS.REQUEST_REJECTED, idPeticion, buildRequestLogContext_(stage, element), email
+      );
     }
     return {
       success: false,
@@ -107,6 +116,26 @@ function submitRequest(payload) {
       message: publicErrorMessage_(error, 'No se pudo completar la solicitud. Contacta con soporte si persiste.')
     };
   }
+}
+
+function buildRequestLogContext_(stage, element, notificationSent) {
+  const context = { etapa: String(stage || '') };
+  if (element) {
+    [
+      ['idElemento', 'id_elemento'],
+      ['equipo', 'equipo'],
+      ['proveedor', 'proveedor'],
+      ['tipoGestion', 'tipo_gestion'],
+      ['subtipo', 'subtipo']
+    ].forEach(function (mapping) {
+      const value = String(element[mapping[1]] || '').trim();
+      if (value) context[mapping[0]] = value;
+    });
+  }
+  if (typeof notificationSent === 'boolean') {
+    context.notificacionEnviada = notificationSent;
+  }
+  return context;
 }
 
 /** Registra excepciones internas en Apps Script sin exponer datos del formulario. */
@@ -506,6 +535,7 @@ function buildRegistroRow_(element, payload, currentUser, idPeticion) {
 if (typeof module !== 'undefined') {
   module.exports = {
     submitRequest,
+    buildRequestLogContext_,
     logRequestFailure_,
     sanitizeRequestDiagnostic_,
     validateRequestPayload_,

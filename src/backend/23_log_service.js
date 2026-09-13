@@ -1,10 +1,11 @@
 /**
- * Auditoría operativa mínima. Solo escribe el email del solicitante y
- * mensajes fijos; nunca copia tiendas, comentarios ni excepciones a Logs.
+ * Auditoría operativa mínima. El contexto contiene metadatos estructurados
+ * de la solicitud; nunca copia tiendas, comentarios ni excepciones a Logs.
  */
 const HEADERS_LOGS = ['fecha', 'nivel', 'evento', 'email', 'id_solicitud', 'mensaje', 'contexto'];
+const LOG_CONTEXT_MAX_LENGTH = 1000;
 
-function logAppEventSafely_(event, idPeticion, stage, email) {
+function logAppEventSafely_(event, idPeticion, context, email) {
   try {
     const details = LOG_DETAILS[event];
     if (!details) throw new Error('Evento de log no admitido.');
@@ -19,7 +20,7 @@ function logAppEventSafely_(event, idPeticion, stage, email) {
       escapeFormulaValue_(String(email || '').trim().toLowerCase()),
       escapeFormulaValue_(String(idPeticion || '')),
       details.message,
-      escapeFormulaValue_(String(stage || ''))
+      escapeFormulaValue_(serializeLogContext_(context))
     ]);
     return true;
   } catch {
@@ -27,6 +28,17 @@ function logAppEventSafely_(event, idPeticion, stage, email) {
     console.error('No se pudo escribir el evento en Logs.');
     return false;
   }
+}
+
+function serializeLogContext_(context) {
+  if (!context || typeof context !== 'object' || Array.isArray(context)) {
+    throw new Error('El contexto de Logs debe ser un objeto.');
+  }
+  const serialized = JSON.stringify(context);
+  if (serialized.length > LOG_CONTEXT_MAX_LENGTH) {
+    throw new Error('El contexto de Logs supera el tamaño permitido.');
+  }
+  return serialized;
 }
 
 function getOrCreateLogsSheet_() {
@@ -55,7 +67,13 @@ function getOrCreateLogsSheet_() {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { HEADERS_LOGS, logAppEventSafely_, getOrCreateLogsSheet_ };
+  module.exports = {
+    HEADERS_LOGS,
+    LOG_CONTEXT_MAX_LENGTH,
+    logAppEventSafely_,
+    serializeLogContext_,
+    getOrCreateLogsSheet_
+  };
   Object.keys(module.exports).forEach(function (key) {
     global[key] = module.exports[key];
   });

@@ -252,10 +252,20 @@ describe('RequestService - submitRequest', function () {
     expect(global.MailApp.sentEmails[0].to).toBe('ana@diagroup.com');
     expect(global.MailApp.sentEmails[0].body).not.toContain('2099-01-01');
     expect(global.MailApp.sentEmails[0].body).not.toContain('TASK1234567');
-    expect(sheets.Logs._getRawValues()[1].slice(1)).toEqual([
+    expect(sheets.Logs._getRawValues()[1].slice(1, 6)).toEqual([
       'INFO', 'SOLICITUD_REGISTRADA', 'ana@diagroup.com', result.idPeticion,
-      'Solicitud registrada correctamente.', 'NOTIFICACION'
+      'Solicitud registrada correctamente.'
     ]);
+    const logContext = JSON.parse(sheets.Logs._getRawValues()[1][6]);
+    expect(logContext).toEqual({
+      etapa: 'NOTIFICACION',
+      idElemento: 'CAF-RETIRADA',
+      equipo: 'CAFETERA',
+      tipoGestion: 'RETIRADA',
+      notificacionEnviada: true
+    });
+    expect(JSON.stringify(logContext)).not.toContain('Retirada coordinada con la tienda.');
+    expect(JSON.stringify(logContext)).not.toContain('AV JUAN XXIII');
   });
 
   test('no genera ID ni graba un movimiento con la misma tienda de origen y destino', function () {
@@ -274,10 +284,16 @@ describe('RequestService - submitRequest', function () {
     expect(result.message).toMatch(/deben ser distintas/);
     expect(sheets.Registros._getRawValues()).toHaveLength(1);
     expect(PropertiesService.getScriptProperties().getProperty('ULTIMO_ID_PETICION')).toBeNull();
-    expect(sheets.Logs._getRawValues()[1].slice(1)).toEqual([
+    expect(sheets.Logs._getRawValues()[1].slice(1, 6)).toEqual([
       'AVISO', 'SOLICITUD_RECHAZADA', 'ana@diagroup.com', '',
-      'Solicitud rechazada.', 'VALIDACION'
+      'Solicitud rechazada.'
     ]);
+    expect(JSON.parse(sheets.Logs._getRawValues()[1][6])).toEqual({
+      etapa: 'VALIDACION',
+      idElemento: 'CAF-RETIRADA',
+      equipo: 'CAFETERA',
+      tipoGestion: 'MOVIMIENTO'
+    });
   });
 
   test('no genera ID ni graba una solicitud con un código ServiceNow inválido', function () {
@@ -362,7 +378,9 @@ describe('RequestService - submitRequest', function () {
     expect(sheets.Registros._getRawValues()).toHaveLength(2);
     expect(sheets.Logs._getRawValues()[1][2]).toBe('NOTIFICACION_FALLIDA');
     expect(sheets.Logs._getRawValues()[1][4]).toBe(result.idPeticion);
-    expect(sheets.Logs._getRawValues()[1][6]).toContain('id_elemento=CAF-RETIRADA');
+    expect(JSON.parse(sheets.Logs._getRawValues()[1][6])).toMatchObject({
+      etapa: 'NOTIFICACION', idElemento: 'CAF-RETIRADA', notificacionEnviada: false
+    });
   });
 
   test('identifica la clave de Sistema cuando el asunto impide notificar', function () {
@@ -378,7 +396,9 @@ describe('RequestService - submitRequest', function () {
     expect(result.notificationSent).toBe(false);
     expect(result.message).toContain('ASUNTO_EMAIL');
     expect(sheets.Registros._getRawValues()).toHaveLength(2);
-    expect(sheets.Logs._getRawValues()[1][6]).toContain('id_elemento=CAF-RETIRADA');
+    expect(JSON.parse(sheets.Logs._getRawValues()[1][6])).toMatchObject({
+      etapa: 'NOTIFICACION', idElemento: 'CAF-RETIRADA', notificacionEnviada: false
+    });
   });
 
   test('identifica email_destino cuando la dirección del elemento no es válida', function () {
@@ -774,7 +794,7 @@ describe('RequestService - submitRequest', function () {
     expect(result.message).not.toContain('Registros');
     expect(result.message).toMatch(/Contacta con soporte/);
     expect(JSON.stringify(sheets.Logs._getRawValues())).not.toContain('Texto privado');
-    expect(sheets.Logs._getRawValues()[1][6]).toBe('REGISTROS');
+    expect(JSON.parse(sheets.Logs._getRawValues()[1][6]).etapa).toBe('REGISTROS');
   });
 
   test('diagnostica una columna obligatoria ausente sin mostrar el esquema al usuario', function () {
