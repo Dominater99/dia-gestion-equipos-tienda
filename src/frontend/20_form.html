@@ -1,0 +1,393 @@
+  <script>
+    function getFormFieldDefinitions(element) {
+      const management = element.tipo_gestion;
+      const filterOpen = element.solo_tiendas_abiertas === 'SI';
+      let fields = [];
+
+      if (management === 'NUEVA_SOLICITUD') {
+        fields = [storeField('tienda', 'Tienda', filterOpen)];
+      } else if (management === 'MOVIMIENTO') {
+        fields = [
+          storeField('tiendaOrigen', 'Tienda de origen', false),
+          storeField('tiendaDestino', 'Tienda de destino', false)
+        ];
+        if (element.equipo === 'NEVERA') {
+          fields.push(field('fechaLimiteRecogida', 'Fecha límite para la recogida', 'date', false));
+        }
+      } else if (management === 'DESCONEXION_TEMPORAL') {
+        fields = [
+          storeField('tienda', 'Tienda', filterOpen),
+          field('fechaInicio', 'Fecha de inicio', 'date', true),
+          field('fechaFin', 'Fecha de fin', 'date', true)
+        ];
+      } else if (management === 'RETIRADA') {
+        fields = [storeField('tienda', 'Tienda', filterOpen)];
+        if (element.equipo === 'LOCKER') {
+          fields.push(field('fechaMaximaRetirada', 'Fecha máxima de retirada', 'date', true));
+        }
+      } else {
+        fields = [storeField('tienda', 'Tienda', filterOpen)];
+      }
+
+      if (element.requiere_service_now === 'SI') {
+        fields.push(field(
+          'codigoServiceNow',
+          'Código de ServiceNow',
+          'text',
+          true,
+          'Formato ' + FORM_RULES.serviceNowPrefix + ' seguido de ' +
+            FORM_RULES.serviceNowDigits + ' dígitos.'
+        ));
+      }
+
+      fields.push(field(
+        'comentarios',
+        'Comentarios',
+        'textarea',
+        true,
+        appState.uiText.commentsHint || ''
+      ));
+      return fields;
+    }
+
+    function field(name, label, type, required, hint) {
+      return {
+        name: name,
+        label: label,
+        type: type,
+        required: required,
+        hint: hint || (type === 'date' ? 'Selecciona una fecha posterior a hoy.' : '')
+      };
+    }
+
+    function storeField(name, label, filterOpen) {
+      const definition = field(name, label, 'store', true);
+      definition.filterOpen = filterOpen;
+      return definition;
+    }
+
+    function renderForm() {
+      const element = appState.currentElement;
+      const breadcrumb = [EQUIPMENT_LABELS[appState.equipment] || appState.equipment];
+      if (appState.provider) breadcrumb.push(appState.provider);
+      document.getElementById('formBreadcrumb').textContent = breadcrumb.join(' · ');
+      document.getElementById('formTitle').textContent = element.etiqueta;
+
+      const container = document.getElementById('formFields');
+      container.replaceChildren();
+      getFormFieldDefinitions(element).forEach(function (definition) {
+        container.appendChild(createField(definition));
+      });
+      appState.isSubmitting = false;
+      refreshSubmitState();
+    }
+
+    function createField(definition) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'field';
+
+      const inputId = 'field-' + definition.name;
+      const errorId = 'error-' + definition.name;
+      const label = document.createElement('label');
+      label.className = 'field__label';
+      label.htmlFor = inputId;
+      label.textContent = definition.label;
+
+      if (definition.required) {
+        const requiredMark = document.createElement('span');
+        requiredMark.className = 'field__required';
+        requiredMark.setAttribute('aria-hidden', 'true');
+        requiredMark.textContent = ' *';
+        label.appendChild(requiredMark);
+      }
+
+      let control;
+      if (definition.type === 'store') {
+        control = document.createElement('input');
+        control.type = 'text';
+        control.inputMode = 'numeric';
+        control.pattern = '[0-9]{1,' + FORM_RULES.storeIdMaxLength + '}';
+        control.maxLength = FORM_RULES.storeIdMaxLength;
+        control.autocomplete = 'off';
+        control.placeholder = 'Código de tienda';
+      } else if (definition.type === 'textarea') {
+        control = document.createElement('textarea');
+        control.maxLength = FORM_RULES.commentMaxLength;
+      } else {
+        control = document.createElement('input');
+        control.type = definition.type;
+        if (definition.type === 'date') control.min = getTomorrowDateInAppTimeZone();
+        if (definition.name === 'codigoServiceNow') {
+          control.pattern = FORM_RULES.serviceNowPrefix + '[0-9]{' + FORM_RULES.serviceNowDigits + '}';
+          control.maxLength = FORM_RULES.serviceNowPrefix.length + FORM_RULES.serviceNowDigits;
+          control.autocomplete = 'off';
+        }
+      }
+
+      control.className = 'field__control';
+      control.id = inputId;
+      control.name = definition.name;
+      control.required = definition.required;
+      control.setAttribute('aria-describedby', errorId);
+
+      const error = document.createElement('p');
+      error.className = 'field__error';
+      error.id = errorId;
+      error.hidden = true;
+
+      wrapper.appendChild(label);
+      if (definition.hint) {
+        const guidance = document.createElement('div');
+        guidance.className = 'field__guidance';
+        const hint = document.createElement('p');
+        hint.className = 'field__hint';
+        hint.textContent = definition.hint;
+        hint.id = 'hint-' + definition.name;
+        guidance.appendChild(hint);
+        if (definition.name === 'comentarios') {
+          const counter = document.createElement('span');
+          counter.className = 'field__counter';
+          counter.id = 'counter-comentarios';
+          counter.textContent = '0 / ' + FORM_RULES.commentMaxLength;
+          guidance.appendChild(counter);
+        }
+        wrapper.appendChild(guidance);
+        control.setAttribute('aria-describedby', hint.id + ' ' + errorId);
+      }
+
+      let inputRow = null;
+      let action = null;
+      if (definition.type === 'store' || definition.name === 'codigoServiceNow') {
+        inputRow = document.createElement('div');
+        inputRow.className = 'field__input-action';
+        action = document.createElement('button');
+        action.className = 'button button--secondary';
+        action.type = 'button';
+        action.textContent = definition.type === 'store' ? 'Buscar' : 'Introducir';
+        inputRow.append(control, action);
+        wrapper.appendChild(inputRow);
+      } else {
+        wrapper.appendChild(control);
+      }
+
+      if (definition.type === 'store') {
+        const status = document.createElement('p');
+        status.className = 'field__status';
+        status.id = 'status-' + definition.name;
+        status.setAttribute('aria-live', 'polite');
+        status.hidden = true;
+        wrapper.appendChild(status);
+        control.setAttribute('aria-describedby', status.id + ' ' + errorId);
+        const card = createStoreCard(definition.name);
+        wrapper.appendChild(card);
+        const change = document.createElement('button');
+        change.type = 'button';
+        change.className = 'field__change';
+        change.textContent = 'Cambiar tienda';
+        change.hidden = true;
+        wrapper.appendChild(change);
+        configureStoreLookup(control, status, error, card, change, inputRow, action);
+      } else if (definition.name === 'codigoServiceNow') {
+        const status = document.createElement('p');
+        status.className = 'field__status';
+        status.id = 'status-codigoServiceNow';
+        status.setAttribute('aria-live', 'polite');
+        status.hidden = true;
+        wrapper.appendChild(status);
+        control.setAttribute('aria-describedby', 'hint-codigoServiceNow ' + status.id + ' ' + errorId);
+        configureServiceNow(control, status, error, action);
+      } else if (definition.type === 'textarea') {
+        control.addEventListener('input', function () {
+          updateCommentCounter(control);
+          refreshSubmitState();
+        });
+        control.addEventListener('blur', function () {
+          control.value = normalizeCommentText(control.value);
+          updateCommentCounter(control);
+          refreshSubmitState();
+        });
+      } else {
+        control.addEventListener('input', function () {
+          if (definition.type === 'date') {
+            showFieldError(control, error, getFieldErrorMessage(definition, control));
+          }
+          refreshSubmitState();
+        });
+        control.addEventListener('change', function () {
+          if (definition.type === 'date') {
+            showFieldError(control, error, getFieldErrorMessage(definition, control));
+          }
+          refreshSubmitState();
+        });
+      }
+      wrapper.appendChild(error);
+      return wrapper;
+    }
+
+    function createStoreCard(fieldName) {
+      const card = document.createElement('article');
+      card.className = 'modification-store-card';
+      card.hidden = true;
+      card.setAttribute('aria-label', 'Tienda validada para ' + fieldName);
+      card.innerHTML = '<div class="modification-store-card__topline">' +
+        '<div class="modification-store-card__badges"><span data-store="apnut"></span>' +
+        '<span data-store="planograma_desc"></span><span data-store="commercial"></span></div>' +
+        '<span class="modification-store-card__area" data-store="area"></span></div>' +
+        '<div class="modification-store-card__main"><h3>Tienda: ' +
+        '<span data-store="tienda_id"></span></h3>' +
+        '<div class="modification-store-card__delegation"><strong data-store="delegacion_desc"></strong>' +
+        '<span data-store="almacen_desc"></span></div></div>' +
+        '<p class="modification-store-card__address"><svg width="12" height="14" viewBox="0 0 12 14" ' +
+        'fill="currentColor" aria-hidden="true"><path d="M6 0a5.5 5.5 0 0 0-5.5 5.5C.5 9.4 6 14 6 14s5.5-4.6 ' +
+        '5.5-8.5A5.5 5.5 0 0 0 6 0Zm0 7.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>' +
+        '<span data-store="address"></span></p>';
+      return card;
+    }
+
+    function renderStoreCard(card, store) {
+      function setValue(key, value) {
+        card.querySelector('[data-store="' + key + '"]').textContent = value || '—';
+      }
+
+      setValue('apnut', String(store.apnut || ''));
+      setValue('planograma_desc', String(store.planograma_desc || ''));
+      setValue('commercial', [store.agr_comercial_id, store.agr_comercial_desc]
+        .filter(function (part) { return part !== '' && part !== null && part !== undefined; })
+        .join(' - '));
+      const area = store.metros_totales;
+      setValue('area', area === '' || area === null || area === undefined
+        ? ''
+        : (typeof area === 'number'
+          ? area.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : String(area)) + ' m²');
+      setValue('tienda_id', String(store.tienda_id || ''));
+      setValue('delegacion_desc', String(store.delegacion_desc || ''));
+      setValue('almacen_desc', String(store.almacen_desc || ''));
+      const province = store.provincia ? '(' + store.provincia + ')' : '';
+      setValue('address', [store.direccion, store.municipio, province].filter(Boolean).join(', '));
+      card.hidden = false;
+    }
+
+    function configureStoreLookup(control, status, error, card, change, inputRow, action) {
+      control.addEventListener('input', function () {
+        const numericValue = control.value.replace(/\D/g, '').slice(0, FORM_RULES.storeIdMaxLength);
+        if (control.value !== numericValue) control.value = numericValue;
+        delete control.dataset.resolvedCode;
+        status.hidden = true;
+        status.textContent = '';
+        error.hidden = true;
+        error.textContent = '';
+        control.setAttribute('aria-invalid', 'false');
+        refreshSubmitState();
+      });
+
+      change.addEventListener('click', function () {
+        card.parentElement.classList.remove('field--store-resolved');
+        card.hidden = true;
+        change.hidden = true;
+        inputRow.hidden = false;
+        control.value = '';
+        delete control.dataset.resolvedCode;
+        status.hidden = true;
+        status.textContent = '';
+        control.focus();
+        refreshSubmitState();
+      });
+
+      action.addEventListener('click', function () {
+        resolveStore(control, status, error, card, change, inputRow, action);
+      });
+      control.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        resolveStore(control, status, error, card, change, inputRow, action);
+      });
+    }
+
+    function resolveStore(control, status, error, card, change, inputRow, action) {
+      const code = control.value.trim();
+      if (action.disabled) return;
+      if (!STORE_ID_PATTERN.test(code)) {
+        showFieldError(control, error,
+          'Introduce un código de tienda de 1 a ' + FORM_RULES.storeIdMaxLength + ' dígitos.');
+        refreshSubmitState();
+        return;
+      }
+
+      action.disabled = true;
+      showLoading('Buscando tienda…');
+      google.script.run
+        .withSuccessHandler(function (result) {
+          hideLoading();
+          action.disabled = false;
+          if (control.value.trim() !== code) return;
+          if (!result || !result.success) {
+            delete control.dataset.resolvedCode;
+            status.hidden = true;
+            showFieldError(control, error, result && result.message);
+            refreshSubmitState();
+            return;
+          }
+
+          control.dataset.resolvedCode = String(result.store.tienda_id);
+          renderStoreCard(card, result.store);
+          card.parentElement.classList.add('field--store-resolved');
+          inputRow.hidden = true;
+          change.hidden = false;
+          showFieldError(control, error, '');
+          refreshSubmitState();
+        })
+        .withFailureHandler(function () {
+          hideLoading();
+          action.disabled = false;
+          if (control.value.trim() !== code) return;
+          delete control.dataset.resolvedCode;
+          status.hidden = true;
+          showFieldError(control, error, 'No se pudo consultar la tienda. Inténtalo de nuevo más tarde.');
+          refreshSubmitState();
+        })
+        .lookupStore(code, appState.currentElement.id_elemento);
+    }
+
+    function configureServiceNow(control, status, error, action) {
+      control.addEventListener('input', function () {
+        control.value = control.value.toUpperCase();
+        delete control.dataset.confirmedCode;
+        status.hidden = true;
+        showFieldError(control, error, '');
+        refreshSubmitState();
+      });
+
+      function confirmCode() {
+        const code = control.value.trim();
+        if (!SERVICE_NOW_PATTERN.test(code)) {
+          showFieldError(control, error,
+            'Usa ' + FORM_RULES.serviceNowPrefix + ' seguido de ' +
+            FORM_RULES.serviceNowDigits + ' dígitos.');
+          refreshSubmitState();
+          return;
+        }
+        control.dataset.confirmedCode = code;
+        status.textContent = 'Código introducido y validado.';
+        status.hidden = false;
+        showFieldError(control, error, '');
+        control.blur();
+        refreshSubmitState();
+      }
+
+      action.addEventListener('click', confirmCode);
+      control.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        confirmCode();
+      });
+    }
+
+    function showFieldError(control, error, message) {
+      const safeMessage = message || '';
+      error.textContent = safeMessage;
+      error.hidden = !safeMessage;
+      control.setAttribute('aria-invalid', safeMessage ? 'true' : 'false');
+    }
+
+  </script>

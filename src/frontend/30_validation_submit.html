@@ -1,0 +1,192 @@
+  <script>
+    function normalizeCommentText(value) {
+      return String(value || '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
+        .split('\n')
+        .map(function (line) {
+          return line.replace(/[^\S\n]+/g, ' ').trim();
+        })
+        .filter(Boolean)
+        .join('\n');
+    }
+
+    function updateCommentCounter(control) {
+      document.getElementById('counter-comentarios').textContent =
+        control.value.length + ' / ' + FORM_RULES.commentMaxLength;
+    }
+
+    function getTodayInAppTimeZone() {
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: APP_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(new Date());
+      const values = {};
+      parts.forEach(function (part) { values[part.type] = part.value; });
+      return values.year + '-' + values.month + '-' + values.day;
+    }
+
+    function getTomorrowDateInAppTimeZone() {
+      const date = new Date(getTodayInAppTimeZone() + 'T00:00:00Z');
+      date.setUTCDate(date.getUTCDate() + 1);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function isValidIsoDate(value) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const parsed = new Date(value + 'T00:00:00Z');
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+    }
+
+    function getFieldErrorMessage(definition, control) {
+      const value = control.value.trim();
+      if (definition.type === 'date') {
+        const tomorrow = getTomorrowDateInAppTimeZone();
+        if (control.min !== tomorrow) control.min = tomorrow;
+        if (value && !isValidIsoDate(value)) return 'Introduce una fecha válida.';
+        if (value && value < tomorrow) return 'La fecha debe ser posterior a hoy.';
+      }
+      if (definition.required && !value) return 'Este campo es obligatorio.';
+      if (definition.type === 'store') {
+        if (!STORE_ID_PATTERN.test(value)) {
+          return 'Introduce un código de tienda de 1 a ' + FORM_RULES.storeIdMaxLength + ' dígitos.';
+        }
+        if (control.dataset.resolvedCode !== value) return 'Busca y valida la tienda introducida.';
+        if (definition.name === 'tiendaDestino') {
+          const origin = document.getElementById('field-tiendaOrigen');
+          if (origin && origin.dataset.resolvedCode === value) {
+            return 'La tienda de origen y la tienda de destino deben ser distintas.';
+          }
+        }
+      }
+      if (definition.name === 'codigoServiceNow') {
+        if (!SERVICE_NOW_PATTERN.test(value)) {
+          return 'Usa ' + FORM_RULES.serviceNowPrefix + ' seguido de ' +
+            FORM_RULES.serviceNowDigits + ' dígitos.';
+        }
+        if (control.dataset.confirmedCode !== value) return 'Pulsa Introducir para validar el código.';
+      }
+      if (definition.name === 'comentarios') {
+        if (control.value.length > FORM_RULES.commentMaxLength) {
+          return 'Los comentarios no pueden superar ' +
+            FORM_RULES.commentMaxLengthDisplay + ' caracteres.';
+        }
+        if (!normalizeCommentText(control.value)) return 'Este campo es obligatorio.';
+      }
+      if (control.validity && !control.validity.valid) return 'Revisa el valor introducido.';
+      return '';
+    }
+
+    function refreshSubmitState() {
+      const button = document.getElementById('submitButton');
+      refreshMovementStoreError();
+      if (!appState.currentElement || appState.isSubmitting) {
+        button.disabled = true;
+        return;
+      }
+      button.disabled = !getFormFieldDefinitions(appState.currentElement).every(function (definition) {
+        const control = document.getElementById('field-' + definition.name);
+        return control && !getFieldErrorMessage(definition, control);
+      });
+    }
+
+    function refreshMovementStoreError() {
+      if (!appState.currentElement || appState.currentElement.tipo_gestion !== 'MOVIMIENTO') return;
+      const origin = document.getElementById('field-tiendaOrigen');
+      const destination = document.getElementById('field-tiendaDestino');
+      if (!origin || !destination || !destination.dataset.resolvedCode) return;
+      const duplicated = origin.dataset.resolvedCode === destination.dataset.resolvedCode;
+      showFieldError(
+        destination,
+        document.getElementById('error-tiendaDestino'),
+        duplicated ? 'La tienda de origen y la tienda de destino deben ser distintas.' : ''
+      );
+    }
+
+    document.getElementById('requestForm').addEventListener('submit', function (event) {
+      event.preventDefault();
+      if (!appState.currentElement || appState.isSubmitting) return;
+      const definitions = getFormFieldDefinitions(appState.currentElement);
+      const payload = { idElemento: appState.currentElement.id_elemento };
+      let firstInvalid = null;
+
+      definitions.forEach(function (definition) {
+        const control = document.getElementById('field-' + definition.name);
+        if (definition.name === 'comentarios') {
+          control.value = normalizeCommentText(control.value);
+          updateCommentCounter(control);
+        }
+        const error = document.getElementById('error-' + definition.name);
+        const message = getFieldErrorMessage(definition, control);
+
+        showFieldError(control, error, message);
+        if (message && !firstInvalid) firstInvalid = control;
+        payload[definition.name] = control.value.trim();
+      });
+
+      if (firstInvalid) {
+        firstInvalid.focus();
+        return;
+      }
+
+      appState.isSubmitting = true;
+      refreshSubmitState();
+      showLoading('Registrando tu solicitud…');
+      google.script.run
+        .withSuccessHandler(handleSubmissionResult)
+        .withFailureHandler(handleSubmissionFailure)
+        .submitRequest(payload);
+    });
+
+    function handleSubmissionResult(result) {
+      hideLoading();
+      appState.isSubmitting = false;
+      refreshSubmitState();
+      appState.submissionSucceeded = Boolean(result && result.success);
+
+      if (appState.submissionSucceeded) {
+        const confirmationText = result.notificationSent === false
+          ? result.message
+          : 'Tu solicitud se ha registrado con el identificador ' +
+            result.idPeticion + '. Recibirás un correo de confirmación.';
+        showResult(
+          true,
+          'Solicitud registrada',
+          confirmationText
+        );
+      } else {
+        showResult(false, 'No se ha podido registrar', result && result.message);
+      }
+    }
+
+    function handleSubmissionFailure(error) {
+      console.error('Falló la llamada a submitRequest.', error);
+      hideLoading();
+      appState.isSubmitting = false;
+      refreshSubmitState();
+      appState.submissionSucceeded = false;
+      showResult(false, 'No se ha podido registrar', appState.uiText.submissionTransportFailure);
+    }
+
+    function showResult(success, title, message) {
+      const icon = document.getElementById('resultIcon');
+      icon.textContent = success ? '✓' : '!';
+      icon.classList.toggle('result-dialog__icon--error', !success);
+      document.getElementById('resultTitle').textContent = title;
+      document.getElementById('resultMessage').textContent =
+        message || 'Se ha producido un error inesperado. Inténtalo de nuevo.';
+      document.getElementById('resultDialog').showModal();
+    }
+
+    document.getElementById('resultCloseButton').addEventListener('click', function () {
+      document.getElementById('resultDialog').close();
+      if (!appState.submissionSucceeded) return;
+
+      appState.equipment = null;
+      appState.provider = null;
+      appState.currentElement = null;
+      document.getElementById('requestForm').reset();
+      showScreen('screenHome');
+    });
+
+  </script>

@@ -1,0 +1,237 @@
+  <script>
+    const STORE_ID_PATTERN = new RegExp('^[0-9]{1,' + FORM_RULES.storeIdMaxLength + '}$');
+    const SERVICE_NOW_PATTERN = new RegExp(
+      '^' + FORM_RULES.serviceNowPrefix + '[0-9]{' + FORM_RULES.serviceNowDigits + '}$'
+    );
+    const appState = {
+      user: null,
+      elements: [],
+      equipment: null,
+      provider: null,
+      currentElement: null,
+      uiText: null,
+      submissionSucceeded: false,
+      isSubmitting: false
+    };
+
+    const EQUIPMENT_LABELS = {
+      NEVERA: 'Nevera',
+      LOCKER: 'Locker',
+      CAFETERA: 'Cafetera'
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+      google.script.run
+        .withSuccessHandler(handleAccessResult)
+        .withFailureHandler(handleAccessFailure)
+        .checkAccess();
+    });
+
+    function handleAccessResult(result) {
+      hideLoading();
+      if (result && result.rateLimited) {
+        document.getElementById('noAccessTitle').textContent = 'Demasiadas consultas';
+        document.getElementById('noAccessMessage').textContent = result.message;
+        document.getElementById('requestAccessButton').hidden = true;
+        showScreen('screenNoAccess');
+        return;
+      }
+      if (!result || !result.authorized) {
+        renderNoAccess(result || {});
+        return;
+      }
+
+      appState.user = result.user;
+      appState.elements = result.elements || [];
+      appState.uiText = result.uiText || {};
+      document.getElementById('homeUserName').textContent =
+        appState.user.nombre || appState.user.email;
+      renderHeaderUser(appState.user);
+      renderHome();
+      showScreen('screenHome');
+    }
+
+    function renderHeaderUser(user) {
+      const label = user && (user.nombre || user.email);
+      if (!label) return;
+
+      const avatar = document.getElementById('headerUserInitials');
+      avatar.textContent = getUserInitials(user);
+      avatar.title = label;
+      avatar.setAttribute('aria-label', 'Usuario: ' + label);
+      avatar.hidden = false;
+    }
+
+    function getUserInitials(user) {
+      const localEmail = String(user.email || '').split('@')[0];
+      const emailParts = localEmail.split(/[.,_\-\s]+/).filter(Boolean);
+      const nameParts = String(user.nombre || '').trim().split(/\s+/).filter(Boolean);
+      const parts = emailParts.length >= 2 ? emailParts : nameParts;
+      if (!parts.length) return localEmail.slice(0, 2).toLocaleUpperCase('es-ES');
+      const initials = parts.length === 1
+        ? parts[0].slice(0, 2)
+        : parts[0].charAt(0) + parts[parts.length - 1].charAt(0);
+      return initials.toLocaleUpperCase('es-ES');
+    }
+
+    function handleAccessFailure() {
+      hideLoading();
+      document.getElementById('noAccessTitle').textContent = 'No se ha podido comprobar el acceso';
+      document.getElementById('noAccessMessage').textContent = 'Inténtalo de nuevo más tarde.';
+      document.getElementById('requestAccessButton').hidden = true;
+      showScreen('screenNoAccess');
+    }
+
+    function renderNoAccess(result) {
+      const email = result.email || '';
+      const adminEmail = result.adminEmail || '';
+      document.getElementById('noAccessEmail').textContent = email;
+
+      const accessButton = document.getElementById('requestAccessButton');
+      if (!adminEmail) {
+        accessButton.hidden = true;
+      } else {
+        accessButton.hidden = false;
+        accessButton.href =
+          'mailto:' + encodeURIComponent(adminEmail) +
+          '?subject=' + encodeURIComponent(result.accessRequestSubject || '') +
+          '&body=' + encodeURIComponent(result.accessRequestBody || '');
+      }
+      showScreen('screenNoAccess');
+    }
+
+    function showLoading(message) {
+      document.getElementById('loadingText').textContent = message || 'Cargando…';
+      document.getElementById('loadingOverlay').hidden = false;
+      document.body.setAttribute('aria-busy', 'true');
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingOverlay').hidden = true;
+      document.body.removeAttribute('aria-busy');
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(function (screen) {
+        screen.hidden = screen.id !== id;
+      });
+      window.scrollTo(0, 0);
+      const heading = document.querySelector('#' + id + ' h2');
+      if (heading) heading.setAttribute('tabindex', '-1');
+      if (heading) heading.focus();
+    }
+
+    function elementsForEquipment(equipment) {
+      return appState.elements.filter(function (element) {
+        return element.equipo === equipment;
+      });
+    }
+
+    function equipmentHasProviders(equipment) {
+      return elementsForEquipment(equipment).some(function (element) {
+        return Boolean(element.proveedor);
+      });
+    }
+
+    function renderHome() {
+      const availableEquipment = {};
+      appState.elements.forEach(function (element) {
+        availableEquipment[element.equipo] = true;
+      });
+
+      document.querySelectorAll('[data-equipment]').forEach(function (button) {
+        button.disabled = !availableEquipment[button.dataset.equipment];
+      });
+    }
+
+    document.querySelectorAll('[data-equipment]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        appState.equipment = button.dataset.equipment;
+        appState.provider = null;
+        appState.currentElement = null;
+
+        if (equipmentHasProviders(appState.equipment)) {
+          renderProviders();
+          showScreen('screenProvider');
+        } else {
+          renderManagementOptions();
+          showScreen('screenManagement');
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-back="home"]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        showScreen('screenHome');
+      });
+    });
+
+    document.querySelectorAll('[data-back="management"]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        showScreen('screenManagement');
+      });
+    });
+
+    function renderProviders() {
+      document.getElementById('providerBreadcrumb').textContent =
+        EQUIPMENT_LABELS[appState.equipment] || appState.equipment;
+      const grid = document.getElementById('providerGrid');
+      grid.replaceChildren();
+
+      const seenProviders = {};
+      elementsForEquipment(appState.equipment).forEach(function (element) {
+        if (!element.proveedor || seenProviders[element.proveedor]) return;
+        seenProviders[element.proveedor] = true;
+
+        const button = document.createElement('button');
+        button.className = 'option-card';
+        button.type = 'button';
+        button.textContent = element.proveedor;
+        button.addEventListener('click', function () {
+          appState.provider = element.proveedor;
+          renderManagementOptions();
+          showScreen('screenManagement');
+        });
+        grid.appendChild(button);
+      });
+    }
+
+    document.getElementById('managementBackButton').addEventListener('click', function () {
+      showScreen(equipmentHasProviders(appState.equipment) ? 'screenProvider' : 'screenHome');
+    });
+
+    function renderManagementOptions() {
+      const breadcrumb = [EQUIPMENT_LABELS[appState.equipment] || appState.equipment];
+      if (appState.provider) breadcrumb.push(appState.provider);
+      document.getElementById('managementBreadcrumb').textContent = breadcrumb.join(' · ');
+
+      const list = document.getElementById('managementList');
+      list.replaceChildren();
+
+      elementsForEquipment(appState.equipment)
+        .filter(function (element) {
+          return !appState.provider || element.proveedor === appState.provider;
+        })
+        .forEach(function (element) {
+          const button = document.createElement('button');
+          button.className = 'option-row';
+          button.type = 'button';
+
+          const label = document.createElement('span');
+          label.textContent = element.etiqueta;
+          const chevron = document.createElement('span');
+          chevron.className = 'option-row__chevron';
+          chevron.setAttribute('aria-hidden', 'true');
+          chevron.textContent = '›';
+
+          button.append(label, chevron);
+          button.addEventListener('click', function () {
+            appState.currentElement = element;
+            renderForm();
+            showScreen('screenForm');
+          });
+          list.appendChild(button);
+        });
+    }
+
+  </script>

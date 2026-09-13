@@ -1,0 +1,26 @@
+{
+  "name": "dia-gestion-equipos-tienda",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Web app en Google Apps Script para registrar incidencias/solicitudes de neveras, lockers y cafeteras de tienda.",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "check": "npm run lint && jest --runInBand",
+    "lint": "eslint .",
+    "push": "node scripts/push.js",
+    "clasp:push": "clasp push --force",
+    "push:watch": "clasp push --watch",
+    "open": "clasp open"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@google/clasp": "^2.4.2",
+    "eslint": "^10.10.0",
+    "jest": "^29.7.0"
+  }
+}

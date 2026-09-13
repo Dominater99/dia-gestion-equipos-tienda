@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="color-scheme" content="light">
+  <?!= HtmlService.createHtmlOutputFromFile('frontend/00_styles').getContent() ?>
+</head>
+<body>
+  <div class="loading-overlay" id="loadingOverlay" role="status" aria-live="polite">
+    <div class="loading-overlay__content">
+      <div class="loading-overlay__spinner" aria-hidden="true"></div>
+      <p class="loading-overlay__text" id="loadingText">Cargando configuración…</p>
+    </div>
+  </div>
+
+  <header class="app-header">
+    <div class="app-header__inner">
+      <div class="app-header__start">
+        <span class="app-header__brand">
+          <img class="app-header__logo"
+            src="data:image/png;base64,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"
+            width="88" height="54" alt="DIA">
+        </span>
+        <h1 class="app-header__title"><?= applicationName ?></h1>
+      </div>
+      <span class="app-header__avatar" id="headerUserInitials" hidden></span>
+    </div>
+  </header>
+
+  <main class="app-main" id="mainContent">
+    <section class="screen" id="screenNoAccess" aria-labelledby="noAccessTitle" hidden>
+      <div class="notice-card">
+        <h2 class="notice-card__title" id="noAccessTitle">No tienes acceso a esta aplicación</h2>
+        <p class="notice-card__text" id="noAccessMessage">
+          Tu usuario (<strong id="noAccessEmail"></strong>) todavía no está dado de alta.
+        </p>
+        <a class="button button--primary" id="requestAccessButton" href="#">Solicitar acceso</a>
+      </div>
+    </section>
+
+    <section class="screen" id="screenHome" aria-labelledby="homeTitle" hidden>
+      <header class="screen__header">
+        <div>
+          <p class="screen__eyebrow">Hola, <span id="homeUserName"></span></p>
+          <h2 class="screen__title" id="homeTitle">¿Qué quieres gestionar?</h2>
+          <p class="screen__description">Elige un equipo para consultar las gestiones disponibles.</p>
+        </div>
+      </header>
+      <div class="option-grid" id="equipmentGrid">
+        <button class="option-card" type="button" data-equipment="NEVERA">
+          <span class="option-card__icon" aria-hidden="true">N</span>
+          <span>Nevera</span>
+        </button>
+        <button class="option-card" type="button" data-equipment="LOCKER">
+          <span class="option-card__icon" aria-hidden="true">L</span>
+          <span>Locker</span>
+        </button>
+        <button class="option-card" type="button" data-equipment="CAFETERA">
+          <span class="option-card__icon" aria-hidden="true">C</span>
+          <span>Cafetera</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="screen" id="screenProvider" aria-labelledby="providerTitle" hidden>
+      <header class="screen__header">
+        <div>
+          <p class="screen__eyebrow" id="providerBreadcrumb"></p>
+          <h2 class="screen__title" id="providerTitle">Selecciona el proveedor</h2>
+        </div>
+        <button class="button button--secondary" type="button" data-back="home">Volver</button>
+      </header>
+      <div class="option-grid" id="providerGrid"></div>
+    </section>
+
+    <section class="screen" id="screenManagement" aria-labelledby="managementTitle" hidden>
+      <header class="screen__header">
+        <div>
+          <p class="screen__eyebrow" id="managementBreadcrumb"></p>
+          <h2 class="screen__title" id="managementTitle">¿Qué necesitas hacer?</h2>
+        </div>
+        <button class="button button--secondary" id="managementBackButton" type="button">Volver</button>
+      </header>
+      <div class="option-list" id="managementList"></div>
+    </section>
+
+    <section class="screen" id="screenForm" aria-labelledby="formTitle" hidden>
+      <header class="screen__header">
+        <div>
+          <p class="screen__eyebrow" id="formBreadcrumb"></p>
+          <h2 class="screen__title" id="formTitle"></h2>
+        </div>
+        <button class="button button--secondary" type="button" data-back="management">Volver</button>
+      </header>
+      <form class="form-card" id="requestForm" novalidate>
+        <div id="formFields"></div>
+        <button class="button button--primary button--block" id="submitButton" type="submit" disabled>
+          Registrar solicitud
+        </button>
+      </form>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <?= applicationName ?> - <?= applicationVersion ?>
+  </footer>
+
+  <dialog class="result-dialog" id="resultDialog" aria-labelledby="resultTitle" aria-describedby="resultMessage">
+    <div class="result-dialog__content">
+      <div class="result-dialog__icon" id="resultIcon" aria-hidden="true">✓</div>
+      <h2 class="result-dialog__title" id="resultTitle">Solicitud registrada</h2>
+      <p class="result-dialog__message" id="resultMessage"></p>
+      <button class="button button--primary" id="resultCloseButton" type="button">Aceptar</button>
+    </div>
+  </dialog>
+
+  <script>
+    const APP_TIME_ZONE = '<?= applicationTimeZone ?>';
+    const FORM_RULES = Object.freeze({
+      commentMaxLength: Number('<?= commentMaxLength ?>'),
+      commentMaxLengthDisplay: '<?= commentMaxLengthDisplay ?>',
+      storeIdMaxLength: Number('<?= storeIdMaxLength ?>'),
+      serviceNowPrefix: '<?= serviceNowPrefix ?>',
+      serviceNowDigits: Number('<?= serviceNowDigits ?>')
+    });
+  </script>
+  <?!= HtmlService.createHtmlOutputFromFile('frontend/10_navigation').getContent() ?>
+  <?!= HtmlService.createHtmlOutputFromFile('frontend/20_form').getContent() ?>
+  <?!= HtmlService.createHtmlOutputFromFile('frontend/30_validation_submit').getContent() ?>
+</body>
+</html>

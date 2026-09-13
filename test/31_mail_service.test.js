@@ -1,0 +1,192 @@
+describe('31_mail_service', function () {
+  const element = {
+    id_elemento: 'CAF-RETIRADA',
+    equipo: 'CAFETERA',
+    proveedor: '',
+    tipo_gestion: 'RETIRADA',
+    subtipo: '',
+    etiqueta: 'Retirada de cafetera sin destino',
+    email_destino: ''
+  };
+
+  beforeEach(function () {
+    resetMockSheets({ Sistema: [['parametro', 'valor']] });
+  });
+
+  test('buildConfirmationEmailBody_ omite los campos que no vienen en el payload', function () {
+    const body = buildConfirmationEmailBody_(
+      { nombre: 'Ana' },
+      'SOL-20260910-0001',
+      element,
+      { tienda: '0001 - Dia Centro' }
+    );
+
+    expect(body).toContain('SOL-20260910-0001');
+    expect(body).toContain('Tienda: 0001 - Dia Centro');
+    expect(body).toContain('Tipo de gestión: Retirada de cafetera sin destino');
+    expect(body).not.toContain('Proveedor:');
+    expect(body).not.toContain('Código ServiceNow:');
+  });
+
+  test('sendConfirmationEmail_ usa el CC por defecto si Sistema no define EMAIL_CC_SOPORTE y el elemento no tiene email_destino', function () {
+    sendConfirmationEmail_(
+      { email: 'ana@diagroup.com', nombre: 'Ana' },
+      'SOL-20260910-0001',
+      element,
+      { tienda: '0001' }
+    );
+
+    const sent = global.MailApp.sentEmails[0];
+    expect(sent.to).toBe('ana@diagroup.com');
+    expect(sent.cc).toBe('dia.es.soporte.layouts@diagroup.com');
+    expect(sent.name).toBe('Dia Layouts');
+    expect(sent.htmlBody).toContain('SOLICITUD REGISTRADA');
+    expect(sent.htmlBody).toContain('DATOS DE LA SOLICITUD');
+    expect(sent.htmlBody).toContain('SOL-20260910-0001');
+    expect(sent.htmlBody).not.toMatch(/<button\b|Abrir la aplicación|<a\b/i);
+  });
+
+  test('usa el nombre de remitente configurado en Sistema', function () {
+    resetMockSheets({
+      Sistema: [
+        ['clave', 'valor'],
+        ['NOMBRE_REMITENTE_EMAIL', 'Equipo Layouts']
+      ]
+    });
+
+    sendConfirmationEmail_(
+      { email: 'ana@diagroup.com', nombre: 'Ana' },
+      'SOL-20260910-0001',
+      element,
+      { tienda: '0001' }
+    );
+
+    expect(global.MailApp.sentEmails[0].name).toBe('Equipo Layouts');
+  });
+
+  test('usa la introducción y el cierre configurados en Sistema', function () {
+    resetMockSheets({
+      Sistema: [
+        ['clave', 'valor'],
+        ['SALUDO_CONFIRMACION_EMAIL', 'Estimada {{nombre}}:'],
+        ['TEXTO_CONFIRMACION_EMAIL', 'Referencia confirmada: {{id_peticion}}.'],
+        ['PIE_CONFIRMACION_EMAIL', 'Contacta con soporte si necesitas ayuda.']
+      ]
+    });
+    sendConfirmationEmail_(
+      { email: 'ana@diagroup.com', nombre: 'Ana' },
+      'SOL-20260910-0001', element, { tienda: '0001' }
+    );
+    const body = global.MailApp.sentEmails[0].body;
+    expect(body).toContain('Estimada Ana:');
+    expect(body).toContain('Referencia confirmada: SOL-20260910-0001.');
+    expect(body).toContain('Contacta con soporte si necesitas ayuda.');
+    expect(body).not.toContain(MAIL_DEFAULTS.CONFIRMATION_FOOTER);
+    expect(global.MailApp.sentEmails[0].htmlBody).toContain('Estimada Ana:');
+    expect(global.MailApp.sentEmails[0].htmlBody).toContain('Contacta con soporte si necesitas ayuda.');
+  });
+
+  test('el HTML escapa datos del formulario y conserva los saltos de línea sin ejecutar etiquetas', function () {
+    const html = buildConfirmationEmailHtml_(
+      { nombre: 'Ana <Prueba>' }, 'SOL-20260910-0001', element,
+      { tienda: '0001 & Centro', comentarios: '<img src=x onerror=alert(1)>\nSegunda línea' }
+    );
+
+    expect(html).toContain('Ana &lt;Prueba&gt;');
+    expect(html).toContain('0001 &amp; Centro');
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;<br>Segunda línea');
+    expect(html).not.toContain('<img');
+    expect(html).not.toContain('Abrir la aplicación');
+  });
+
+  test('usa el asunto configurable y los datos de tienda verificados en servidor', function () {
+    resetMockSheets({
+      Sistema: [
+        ['clave', 'valor'],
+        ['ASUNTO_EMAL', '[Gestión equipos]-{{equipo}}-{{tipo_gestion}}- {{tienda}}-{{provincia}}-{{municipio}}-{{direccion}}']
+      ]
+    });
+
+    sendConfirmationEmail_(
+      { email: 'ana@diagroup.com', nombre: 'Ana' },
+      'SOL-20260910-0001',
+      element,
+      {
+        tienda: '0001 - AV JUAN XXIII 10, Pozuelo de Alarcón',
+        _storeDetails: {
+          tienda: {
+            tienda_id: '0001', provincia: 'MADRID', municipio: 'Pozuelo de Alarcón',
+            direccion: 'AV JUAN XXIII 10'
+          }
+        }
+      }
+    );
+
+    expect(global.MailApp.sentEmails[0].subject).toBe(
+      '[Gestión equipos]-CAFETERA-RETIRADA- 0001-MADRID-Pozuelo de Alarcón-AV JUAN XXIII 10'
+    );
+  });
+
+  test('rechaza marcadores de asunto no soportados', function () {
+    expect(function () {
+      buildConfirmationSubject_('{{secreto}}', element, {});
+    }).toThrow(/no admitido/);
+  });
+
+  test('admite id_elemento en el asunto configurado de Sistema', function () {
+    resetMockSheets({
+      Sistema: [['clave', 'valor'], ['ASUNTO_EMAL', 'Gestión {{id_elemento}} - {{equipo}}']]
+    });
+
+    sendConfirmationEmail_(
+      { email: 'ana@diagroup.com', nombre: 'Ana' },
+      'SOL-20260910-0001', element, { tienda: '0001' }
+    );
+
+    expect(global.MailApp.sentEmails[0].subject).toBe('Gestión CAF-RETIRADA - CAFETERA');
+  });
+
+  test('prefiere ASUNTO_EMAIL y conserva ASUNTO_EMAL como clave heredada', function () {
+    resetMockSheets({
+      Sistema: [['clave', 'valor'], ['ASUNTO_EMAL', 'Asunto antiguo'], ['ASUNTO_EMAIL', 'Asunto correcto']]
+    });
+    sendConfirmationEmail_(
+      { email: 'ana@diagroup.com', nombre: 'Ana' },
+      'SOL-20260910-0001', element, { tienda: '0001' }
+    );
+    expect(global.MailApp.sentEmails[0].subject).toBe('Asunto correcto');
+  });
+
+  test('sendConfirmationEmail_ añade el email_destino del elemento al CC, además del fijo de soporte', function () {
+    resetMockSheets({ Sistema: [['parametro', 'valor'], ['EMAIL_CC_SOPORTE', 'soporte@diagroup.com']] });
+
+    const elementConDestino = Object.assign({}, element, { email_destino: 'cafeteras@diagroup.com' });
+
+    sendConfirmationEmail_(
+      { email: 'ana@diagroup.com', nombre: 'Ana' },
+      'SOL-20260910-0001',
+      elementConDestino,
+      { tienda: '0001' }
+    );
+
+    expect(global.MailApp.sentEmails[0].cc).toBe('soporte@diagroup.com,cafeteras@diagroup.com');
+  });
+
+  test('rechaza una celda de CC con varios destinatarios o saltos de línea', function () {
+    ['uno@diagroup.com,dos@diagroup.com', 'uno@diagroup.com\r\nBcc:otro@ejemplo.com'].forEach(function (value) {
+      expect(function () { normalizeSingleEmail_(value); }).toThrow(/dirección válida/);
+    });
+  });
+
+  test('no envía dos veces la misma dirección en CC', function () {
+    resetMockSheets({
+      Sistema: [['clave', 'valor'], ['EMAIL_CC_SOPORTE', 'soporte@diagroup.com']]
+    });
+    sendConfirmationEmail_(
+      { email: 'ana@diagroup.com', nombre: 'Ana' }, 'SOL-20260910-0001',
+      Object.assign({}, element, { email_destino: 'SOPORTE@diagroup.com' }),
+      { tienda: '0001' }
+    );
+    expect(global.MailApp.sentEmails[0].cc).toBe('soporte@diagroup.com');
+  });
+});

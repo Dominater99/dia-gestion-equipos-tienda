@@ -1,0 +1,9 @@
+**/node_modules/**
+**/.git/**
+**/test/**
+**/coverage/**
+package.json
+package-lock.json
+jest.config.js
+README.md
+.gitignore
