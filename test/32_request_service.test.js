@@ -342,11 +342,20 @@ describe('RequestService - submitRequest', function () {
       throw new Error('Fallo simulado de correo');
     };
 
-    const result = submitRequest({
-      idElemento: 'CAF-RETIRADA',
-      tienda: '0001',
-      comentarios: 'Retirada coordinada con la tienda.'
-    });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(function () {});
+    let result;
+    try {
+      result = submitRequest({
+        idElemento: 'CAF-RETIRADA',
+        tienda: '0001',
+        comentarios: 'Retirada coordinada con la tienda.'
+      });
+      expect(consoleError).toHaveBeenCalledWith(expect.any(Error));
+      expect(consoleError.mock.calls[0][0].message).toContain('submitRequest [NOTIFICACION]');
+      expect(consoleError.mock.calls[0][0].message).toContain('Fallo simulado de correo');
+    } finally {
+      consoleError.mockRestore();
+    }
 
     expect(result.success).toBe(true);
     expect(result.notificationSent).toBe(false);
@@ -480,9 +489,18 @@ describe('RequestService - submitRequest', function () {
     });
     properties.setProperty(key, 'malformado');
 
-    const rejected = submitRequest({
-      idElemento: 'CAF-RETIRADA', tienda: '0001', comentarios: 'Solicitud.'
-    });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(function () {});
+    let rejected;
+    try {
+      rejected = submitRequest({
+        idElemento: 'CAF-RETIRADA', tienda: '0001', comentarios: 'Solicitud.'
+      });
+      expect(consoleError).toHaveBeenCalledWith(expect.any(Error));
+      expect(consoleError.mock.calls[0][0].message).toContain('submitRequest [LIMITE_ENVIOS]');
+      expect(consoleError.mock.calls[0][0].message).toContain('El estado del límite de envíos no es válido');
+    } finally {
+      consoleError.mockRestore();
+    }
     expect(rejected.success).toBe(false);
     expect(sheets.Logs._getRawValues()[1][2]).toBe(LOG_EVENTS.RATE_LIMIT_STATE_INVALID);
     expect(properties.getProperty(key)).toBeNull();
