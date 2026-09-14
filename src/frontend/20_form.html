@@ -6,6 +6,16 @@
 
       if (management === 'NUEVA_SOLICITUD') {
         fields = [storeField('tienda', 'Tienda', filterOpen)];
+        if (element.equipo === 'CAFETERA') {
+          fields.push(
+            field('enchufeDisponible', '¿Enchufe disponible?', 'yes-no', true),
+            field('tomaAguaDisponible', '¿Toma de agua disponible?', 'yes-no', true),
+            field('fotoUbicacion', 'Foto ubicación', 'photo', true,
+              'Adjunta una imagen JPEG, JPG o PNG de hasta ' + FORM_RULES.photoMaxSizeDisplay + ' MiB.'),
+            field('fotoLayout', 'Foto layout', 'photo', true,
+              'Adjunta una imagen JPEG, JPG o PNG de hasta ' + FORM_RULES.photoMaxSizeDisplay + ' MiB.')
+          );
+        }
       } else if (management === 'MOVIMIENTO') {
         fields = [
           storeField('tiendaOrigen', 'Tienda de origen', false),
@@ -123,6 +133,9 @@
         control = document.createElement('input');
         control.type = 'file';
         control.accept = 'image/jpeg,image/png,.jpeg,.jpg,.png';
+      } else if (definition.type === 'yes-no') {
+        control = document.createElement('input');
+        control.type = 'hidden';
       } else {
         control = document.createElement('input');
         control.type = definition.type;
@@ -168,6 +181,12 @@
       if (definition.type === 'photo') {
         wrapper.appendChild(createPhotoUpload(control, label));
         configurePhotoUpload(control, error);
+        wrapper.appendChild(error);
+        return wrapper;
+      }
+      if (definition.type === 'yes-no') {
+        wrapper.appendChild(createYesNoControl(control, label));
+        configureYesNoControl(control, error);
         wrapper.appendChild(error);
         return wrapper;
       }
@@ -239,6 +258,42 @@
       }
       wrapper.appendChild(error);
       return wrapper;
+    }
+
+    function createYesNoControl(control, label) {
+      const group = document.createElement('div');
+      group.className = 'choice-group';
+      group.setAttribute('role', 'radiogroup');
+      group.setAttribute('aria-label', label.textContent.replace(' *', ''));
+      ['SI', 'NO'].forEach(function (choice) {
+        const button = document.createElement('button');
+        button.className = 'choice-group__option';
+        button.type = 'button';
+        button.dataset.value = choice;
+        button.setAttribute('role', 'radio');
+        button.setAttribute('aria-checked', 'false');
+        button.textContent = choice;
+        group.appendChild(button);
+      });
+      group.appendChild(control);
+      control._choiceGroup = group;
+      control._choiceFocus = group.querySelector('button');
+      return group;
+    }
+
+    function configureYesNoControl(control, error) {
+      control._choiceGroup.addEventListener('click', function (event) {
+        const button = event.target.closest('button[data-value]');
+        if (!button) return;
+        control.value = button.dataset.value;
+        control._choiceGroup.querySelectorAll('button[data-value]').forEach(function (option) {
+          const selected = option === button;
+          option.classList.toggle('choice-group__option--selected', selected);
+          option.setAttribute('aria-checked', String(selected));
+        });
+        showFieldError(control, error, '');
+        refreshSubmitState();
+      });
     }
 
     function createPhotoUpload(control, label) {

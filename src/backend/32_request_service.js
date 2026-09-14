@@ -190,6 +190,7 @@ function normalizeRequestStores_(element, payload, visibleStores) {
   ['fechaLimiteRecogida', 'fechaInicio', 'fechaFin', 'fechaMaximaRetirada'].forEach(function (fieldName) {
     if (allowedDates.indexOf(fieldName) === -1) delete result[fieldName];
   });
+  normalizeCafeteraNewRequestFields_(element, result);
   normalizeRequestPhoto_(element, result);
   result._storeDetails = {};
   const storeFields = element.tipo_gestion === TIPOS_GESTION.MOVIMIENTO
@@ -271,7 +272,8 @@ function validateRequestPayload_(element, payload) {
   }
 
   validateFutureDates_(payload);
-  validatePhotoPayloadMetadata_(element, payload.foto);
+  validateCafeteraNewRequestFields_(element, payload);
+  validatePhotoPayloadMetadata_(element, payload);
 
   const codigo = String(payload.codigoServiceNow || '').trim();
   if (
@@ -294,13 +296,50 @@ function validateRequestPayload_(element, payload) {
   }
 }
 
-function requiresPhoto_(element) {
+function isCafeteraNewRequest_(element) {
   return element && element.equipo === EQUIPOS.CAFETERA &&
-    element.tipo_gestion === TIPOS_GESTION.ERROR_PANTALLA;
+    element.tipo_gestion === TIPOS_GESTION.NUEVA_SOLICITUD;
 }
 
-function validatePhotoPayloadMetadata_(element, photo) {
-  if (!requiresPhoto_(element)) return;
+function photoFieldNames_(element) {
+  if (element && element.equipo === EQUIPOS.CAFETERA &&
+      element.tipo_gestion === TIPOS_GESTION.ERROR_PANTALLA) {
+    return ['foto'];
+  }
+  return isCafeteraNewRequest_(element) ? ['fotoUbicacion', 'fotoLayout'] : [];
+}
+
+function requiresPhoto_(element) {
+  return photoFieldNames_(element).length > 0;
+}
+
+function validateCafeteraNewRequestFields_(element, payload) {
+  if (!isCafeteraNewRequest_(element)) return;
+  if (!/^(SI|NO)$/.test(String(payload.enchufeDisponible || '').trim().toUpperCase())) {
+    throw publicError_(VALIDATION_MESSAGES.POWER_OUTLET);
+  }
+  if (!/^(SI|NO)$/.test(String(payload.tomaAguaDisponible || '').trim().toUpperCase())) {
+    throw publicError_(VALIDATION_MESSAGES.WATER_OUTLET);
+  }
+}
+
+function normalizeCafeteraNewRequestFields_(element, payload) {
+  if (!isCafeteraNewRequest_(element)) {
+    delete payload.enchufeDisponible;
+    delete payload.tomaAguaDisponible;
+    return;
+  }
+  payload.enchufeDisponible = String(payload.enchufeDisponible).trim().toUpperCase();
+  payload.tomaAguaDisponible = String(payload.tomaAguaDisponible).trim().toUpperCase();
+}
+
+function validatePhotoPayloadMetadata_(element, payload) {
+  photoFieldNames_(element).forEach(function (fieldName) {
+    validateSinglePhotoPayloadMetadata_(payload[fieldName]);
+  });
+}
+
+function validateSinglePhotoPayloadMetadata_(photo) {
   if (!photo || typeof photo !== 'object' || Array.isArray(photo)) {
     throw publicError_(VALIDATION_MESSAGES.PHOTO_REQUIRED);
   }
@@ -319,23 +358,34 @@ function validatePhotoPayloadMetadata_(element, photo) {
 }
 
 function normalizeRequestPhoto_(element, payload) {
-  const photo = payload.foto;
-  delete payload.foto;
-  if (!requiresPhoto_(element)) return;
+  const photoFields = photoFieldNames_(element);
+  const sourcePhotos = {};
+  ['foto', 'fotoUbicacion', 'fotoLayout'].forEach(function (fieldName) {
+    sourcePhotos[fieldName] = payload[fieldName];
+    delete payload[fieldName];
+  });
+  if (!photoFields.length) return;
 
-  const mimeType = String(photo.mimeType || '').trim().toLowerCase();
-  let bytes;
-  try {
-    bytes = Utilities.base64Decode(String(photo.base64 || ''));
-  } catch {
-    throw publicError_(VALIDATION_MESSAGES.PHOTO_CONTENT);
+  const attachments = photoFields.map(function (fieldName) {
+    const photo = sourcePhotos[fieldName];
+    const mimeType = String(photo.mimeType || '').trim().toLowerCase();
+    let bytes;
+    try {
+      bytes = Utilities.base64Decode(String(photo.base64 || ''));
+    } catch {
+      throw publicError_(VALIDATION_MESSAGES.PHOTO_CONTENT);
+    }
+    if (!bytes || !bytes.length) throw publicError_(VALIDATION_MESSAGES.PHOTO_REQUIRED);
+    if (bytes.length > PHOTO_UPLOAD.MAX_BYTES) throw publicError_(VALIDATION_MESSAGES.PHOTO_SIZE);
+    if (!hasPhotoSignature_(bytes, PHOTO_UPLOAD.SIGNATURES[mimeType])) {
+      throw publicError_(VALIDATION_MESSAGES.PHOTO_CONTENT);
+    }
+    return { fieldName: fieldName, bytes: bytes, mimeType: mimeType };
+  });
+  payload._photoAttachments = attachments;
+  if (attachments.length === 1 && attachments[0].fieldName === 'foto') {
+    payload._photoAttachment = attachments[0];
   }
-  if (!bytes || !bytes.length) throw publicError_(VALIDATION_MESSAGES.PHOTO_REQUIRED);
-  if (bytes.length > PHOTO_UPLOAD.MAX_BYTES) throw publicError_(VALIDATION_MESSAGES.PHOTO_SIZE);
-  if (!hasPhotoSignature_(bytes, PHOTO_UPLOAD.SIGNATURES[mimeType])) {
-    throw publicError_(VALIDATION_MESSAGES.PHOTO_CONTENT);
-  }
-  payload._photoAttachment = { bytes: bytes, mimeType: mimeType };
 }
 
 function hasPhotoSignature_(bytes, signature) {
@@ -344,7 +394,6 @@ function hasPhotoSignature_(bytes, signature) {
     return (Number(bytes[index]) & 255) === value;
   });
 }
-
 /**
  * Exige fechas de calendario ISO posteriores al día actual del script.
  * Las fechas opcionales solo se comprueban si llegan con valor.
@@ -423,6 +472,10 @@ function registerRequest_(element, payload, currentUser, systemParams) {
     };
     if (indexes.id < 0 || indexes.timestamp < 0 || indexes.email < 0) {
       throw new Error('Faltan columnas obligatorias en Registros. Revisa la cabecera de la hoja.');
+    }
+    if (isCafeteraNewRequest_(element) &&
+        (headers.indexOf('enchufe_disponible') < 0 || headers.indexOf('toma_agua_disponible') < 0)) {
+      throw publicError_('Faltan las columnas enchufe_disponible y toma_agua_disponible en Registros.');
     }
 
     const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
@@ -542,7 +595,9 @@ function buildRegistroRow_(element, payload, currentUser, idPeticion) {
     fecha_maxima_retirada: payload.fechaMaximaRetirada || '',
     necesita_codigo_servicenow: element.requiere_service_now || 'NO',
     codigo_servicenow: payload.codigoServiceNow || '',
-    comentarios: payload.comentarios || ''
+    comentarios: payload.comentarios || '',
+    enchufe_disponible: payload.enchufeDisponible || '',
+    toma_agua_disponible: payload.tomaAguaDisponible || ''
   };
 }
 
@@ -557,8 +612,13 @@ if (typeof module !== 'undefined') {
     isValidIsoDate_,
     normalizeCommentText_,
     normalizeRequestStores_,
+    isCafeteraNewRequest_,
+    photoFieldNames_,
     requiresPhoto_,
+    validateCafeteraNewRequestFields_,
+    normalizeCafeteraNewRequestFields_,
     validatePhotoPayloadMetadata_,
+    validateSinglePhotoPayloadMetadata_,
     normalizeRequestPhoto_,
     hasPhotoSignature_,
     registerRequest_,

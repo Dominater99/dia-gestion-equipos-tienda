@@ -641,6 +641,34 @@
       font-weight: 800;
     }
 
+    .choice-group {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-4);
+    }
+
+    .choice-group__option {
+      min-height: var(--touch-target);
+      border: .0625rem solid var(--color-border-strong);
+      border-radius: var(--radius-control);
+      color: var(--color-text-primary);
+      background: var(--color-surface);
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .choice-group__option:hover,
+    .choice-group__option:focus-visible,
+    .choice-group__option--selected {
+      border-color: var(--color-primary);
+      outline: none;
+    }
+
+    .choice-group__option--selected {
+      color: #fff;
+      background: var(--color-primary);
+    }
+
     .photo-upload {
       display: grid;
       gap: var(--space-4);

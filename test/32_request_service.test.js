@@ -160,6 +160,42 @@ describe('32_request_service - validateRequestPayload_', function () {
     expect(function () { normalizeRequestPhoto_(element, payload); }).toThrow(/contenido.*foto/i);
   });
 
+  test('exige SI o NO y dos fotos válidas en Nueva solicitud de Cafetera', function () {
+    const element = { tipo_gestion: 'NUEVA_SOLICITUD', equipo: 'CAFETERA', requiere_service_now: 'NO' };
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]).toString('base64');
+    const payload = {
+      tienda: '0001', comentarios: 'Instalación solicitada.', enchufeDisponible: 'SI', tomaAguaDisponible: 'NO',
+      fotoUbicacion: { mimeType: 'image/png', base64: png },
+      fotoLayout: { mimeType: 'image/png', base64: png }
+    };
+
+    expect(function () { validateRequestPayload_(element, Object.assign({}, payload)); }).not.toThrow();
+    expect(function () {
+      validateRequestPayload_(element, Object.assign({}, payload, { enchufeDisponible: '' }));
+    }).toThrow(/enchufe disponible/);
+    expect(function () {
+      validateRequestPayload_(element, Object.assign({}, payload, { tomaAguaDisponible: 'QUIZÁ' }));
+    }).toThrow(/toma de agua disponible/);
+    expect(function () {
+      validateRequestPayload_(element, Object.assign({}, payload, { fotoLayout: null }));
+    }).toThrow(/Foto.*obligatorio/);
+  });
+
+  test('normaliza las dos fotos de Nueva solicitud de Cafetera como adjuntos temporales', function () {
+    const element = { tipo_gestion: 'NUEVA_SOLICITUD', equipo: 'CAFETERA' };
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]).toString('base64');
+    const payload = {
+      fotoUbicacion: { mimeType: 'image/png', base64: png },
+      fotoLayout: { mimeType: 'image/png', base64: png }
+    };
+
+    normalizeRequestPhoto_(element, payload);
+    expect(payload.fotoUbicacion).toBeUndefined();
+    expect(payload.fotoLayout).toBeUndefined();
+    expect(payload._photoAttachments.map(function (photo) { return photo.fieldName; }))
+      .toEqual(['fotoUbicacion', 'fotoLayout']);
+  });
+
   test('normaliza líneas vacías, espacios repetidos y caracteres invisibles', function () {
     expect(normalizeCommentText_('  Primera   línea \r\n\r\n\tSegunda\u00a0  línea\u200b  '))
       .toBe('Primera línea\nSegunda línea');
@@ -259,7 +295,8 @@ describe('RequestService - submitRequest', function () {
         'id_peticion', 'timestamp_registro', 'email_usuario', 'nombre_usuario', 'delegacion_usuario',
         'id_elemento', 'etiqueta_elemento', 'equipo', 'proveedor', 'tipo_gestion', 'subtipo',
         'tienda', 'tienda_origen', 'tienda_destino', 'fecha_limite_recogida', 'fecha_inicio', 'fecha_fin',
-        'fecha_maxima_retirada', 'necesita_codigo_servicenow', 'codigo_servicenow', 'comentarios'
+        'fecha_maxima_retirada', 'necesita_codigo_servicenow', 'codigo_servicenow', 'comentarios',
+        'enchufe_disponible', 'toma_agua_disponible'
       ]]
     });
   }
@@ -283,7 +320,7 @@ describe('RequestService - submitRequest', function () {
     expect(result.idPeticion).toMatch(/^SOL-\d{8}-0001$/);
 
     const filaGrabada = sheets.Registros._getRawValues()[1];
-    expect(filaGrabada).toHaveLength(21);
+    expect(filaGrabada).toHaveLength(23);
     expect(filaGrabada[5]).toBe('CAF-RETIRADA'); // id_elemento
     expect(filaGrabada[6]).toBe('Retirada de cafetera sin destino'); // etiqueta_elemento
     expect(filaGrabada[11]).toBe('0001 - AV JUAN XXIII 10, Pozuelo de Alarcón');
@@ -331,13 +368,66 @@ describe('RequestService - submitRequest', function () {
     });
 
     expect(result.success).toBe(true);
-    expect(sheets.Registros._getRawValues()[1]).toHaveLength(21);
+    expect(sheets.Registros._getRawValues()[1]).toHaveLength(23);
     expect(JSON.stringify(sheets.Registros._getRawValues()[1])).not.toContain(png.toString('base64'));
     expect(global.MailApp.sentEmails[0].attachments).toHaveLength(1);
     expect(global.MailApp.sentEmails[0].attachments[0].getName()).toBe(
       'foto-' + result.idPeticion + '.png'
     );
     expect(global.MailApp.sentEmails[0].attachments[0].getBytes()).toEqual(Array.from(png));
+  });
+
+  test('registra la disponibilidad y adjunta Foto ubicación y Foto layout en Nueva solicitud de Cafetera', function () {
+    const sheets = buildFixtures('ACTIVO', 'ACTIVE');
+    sheets.Elementos._getRawValues()[1] = [
+      'CAF-NUEVA', 'CAFETERA', '', 'NUEVA_SOLICITUD', '', 'Nueva solicitud para tienda abierta',
+      'ACTIVE', 'NO', 'SI', '', 10
+    ];
+    global.Session.getActiveUser = function () {
+      return { getEmail: function () { return 'ana@diagroup.com'; } };
+    };
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+    const photo = { mimeType: 'image/png', base64: png.toString('base64') };
+
+    const result = submitRequest({
+      idElemento: 'CAF-NUEVA', tienda: '0001', comentarios: 'Ubicación revisada.',
+      enchufeDisponible: 'SI', tomaAguaDisponible: 'NO', fotoUbicacion: photo, fotoLayout: photo
+    });
+
+    expect(result.success).toBe(true);
+    const row = sheets.Registros._getRawValues()[1];
+    expect(row[21]).toBe('SI');
+    expect(row[22]).toBe('NO');
+    expect(global.MailApp.sentEmails[0].attachments).toHaveLength(2);
+    expect(global.MailApp.sentEmails[0].attachments.map(function (attachment) { return attachment.getName(); }))
+      .toEqual(['foto-ubicacion-' + result.idPeticion + '.png', 'foto-layout-' + result.idPeticion + '.png']);
+    expect(global.MailApp.sentEmails[0].body).toContain('Enchufe disponible: SI');
+    expect(global.MailApp.sentEmails[0].body).toContain('Toma de agua disponible: NO');
+  });
+
+  test('no registra Nueva solicitud de Cafetera si faltan sus dos columnas de disponibilidad', function () {
+    const sheets = buildFixtures('ACTIVO', 'ACTIVE');
+    sheets.Elementos._getRawValues()[1] = [
+      'CAF-NUEVA', 'CAFETERA', '', 'NUEVA_SOLICITUD', '', 'Nueva solicitud para tienda abierta',
+      'ACTIVE', 'NO', 'SI', '', 10
+    ];
+    sheets.Registros._getRawValues()[0] = sheets.Registros._getRawValues()[0].slice(0, 21);
+    global.Session.getActiveUser = function () {
+      return { getEmail: function () { return 'ana@diagroup.com'; } };
+    };
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]).toString('base64');
+
+    const result = submitRequest({
+      idElemento: 'CAF-NUEVA', tienda: '0001', comentarios: 'Solicitud.',
+      enchufeDisponible: 'SI', tomaAguaDisponible: 'NO',
+      fotoUbicacion: { mimeType: 'image/png', base64: png },
+      fotoLayout: { mimeType: 'image/png', base64: png }
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('enchufe_disponible');
+    expect(sheets.Registros._getRawValues()).toHaveLength(1);
+    expect(global.MailApp.sentEmails).toHaveLength(0);
   });
 
   test('no genera ID ni graba un movimiento con la misma tienda de origen y destino', function () {
@@ -666,7 +756,7 @@ describe('RequestService - submitRequest', function () {
     });
     expect(result.success).toBe(true);
     expect(sheets.Registros._getRawValues()).toHaveLength(2);
-    expect(sheets.Registros._getRawValues()[1].slice(21)).toEqual(['', '']);
+    expect(sheets.Registros._getRawValues()[1].slice(23)).toEqual(['', '']);
   });
 
   test('rechaza identidad vacía sin leer hojas ni escribir Logs', function () {

@@ -220,15 +220,20 @@ id_peticion, timestamp_registro, email_usuario, nombre_usuario,
 delegacion_usuario, id_elemento, etiqueta_elemento, equipo, proveedor,
 tipo_gestion, subtipo, tienda, tienda_origen, tienda_destino,
 fecha_limite_recogida, fecha_inicio, fecha_fin, fecha_maxima_retirada,
-necesita_codigo_servicenow, codigo_servicenow, comentarios
+necesita_codigo_servicenow, codigo_servicenow, comentarios, enchufe_disponible,
+toma_agua_disponible
 ```
 
 Las columnas no aplicables a una gestión se guardan vacías. El texto que comienza por `=`, `+`,
 `-` o `@` se prefija para impedir que Sheets lo evalúe como fórmula.
 `necesita_codigo_servicenow` conserva el valor efectivo del elemento en el momento del alta; es
 una instantánea histórica deliberada, aunque el maestro `Elementos` cambie después.
-El servidor descarta tiendas, fechas y códigos ServiceNow no aplicables aunque el navegador
-los envíe; solo se persisten los campos correspondientes al elemento seleccionado.
+El servidor descarta tiendas, fechas, códigos ServiceNow, disponibilidades y fotos no aplicables
+aunque el navegador los envíe; solo se persisten los campos correspondientes al elemento seleccionado.
+`enchufe_disponible` y `toma_agua_disponible` contienen `SI` o `NO` solo en `NUEVA_SOLICITUD` de
+Cafetera; las fotos nunca se escriben en `Registros`. Antes de habilitar esa gestión en una hoja
+existente se añaden ambas cabeceras al final de `Registros`; si faltan, el servidor rechaza el alta
+antes de asignar ID, escribir una fila o enviar correo.
 `Registros` se prepara manualmente; si falta o no tiene las columnas obligatorias, no se registra
 la solicitud. Las antiguas `clave_idempotencia` y `huella_solicitud` ya no se crean ni se usan;
 si siguen presentes, las nuevas filas las dejan vacías. No se eliminan datos automáticamente.
@@ -267,7 +272,7 @@ registra el fallo de `google.script.run` en su propia consola.
 
 | Gestión | Campos obligatorios | Campos condicionales |
 |---|---|---|
-| `NUEVA_SOLICITUD` | tienda | solo tiendas abiertas cuando la fila lo indique |
+| `NUEVA_SOLICITUD` | tienda | en Cafetera: enchufe, toma de agua, foto de ubicación y foto de layout |
 | `MOVIMIENTO` | tienda de origen y destino | fecha límite opcional para neveras |
 | `DESCONEXION_TEMPORAL` | tienda, fecha de inicio y fin | — |
 | `RETIRADA` | tienda | fecha máxima obligatoria para lockers |
@@ -298,8 +303,10 @@ saltos entre líneas con contenido. Los tres campos de tienda aceptan solo 1–5
 Para `ERROR_PANTALLA` de Cafetera, Foto es obligatoria y acepta una sola imagen JPEG/JPG o PNG de
 hasta 10 MiB. La zona de carga admite selección, arrastre y pegado desde el portapapeles; mientras
 hay una foto seleccionada oculta esas opciones y muestra su nombre con una acción «×» para eliminarla.
-El navegador solo usa el tipo MIME como ayuda; el servidor repite el límite y comprueba la firma
-binaria de JPEG o PNG antes de registrar la solicitud.
+En `NUEVA_SOLICITUD` de Cafetera, después de validar la tienda se exigen dos controles en botones,
+no desplegables: «¿Enchufe disponible?» y «¿Toma de agua disponible?», ambos `SI` o `NO`, seguidos
+por Foto ubicación y Foto layout, también obligatorias. El navegador solo usa el tipo MIME como
+ayuda; el servidor repite el límite y comprueba la firma binaria de JPEG o PNG antes de registrar.
 
 «Registrar solicitud» permanece desactivado hasta que todos los campos requeridos sean válidos
 y las tiendas y el código ServiceNow se hayan confirmado.
@@ -385,9 +392,11 @@ deshacer una solicitud ya guardada. Se eliminan saltos de línea del asunto.
 El correo de confirmación contiene `body` de texto plano y `htmlBody` con tarjeta centrada,
 cabecera DIA, estado de alta, tabla de datos y pie. La cabecera carga el logo oficial desde
 `https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg`. No incluye el botón «Abrir la aplicación», enlaces, otros recursos remotos
-ni datos de otras solicitudes. Solo para `ERROR_PANTALLA` de Cafetera incorpora la foto validada
-como un adjunto binario, con nombre `foto-<id_peticion>.jpg` o `.png`; no crea archivos de Drive ni
-incluye enlaces. Solo se muestran campos con valor; el HTML escapa los datos y conserva los saltos
+ni datos de otras solicitudes. Para `ERROR_PANTALLA` de Cafetera incorpora la foto validada como
+un adjunto binario, con nombre `foto-<id_peticion>.jpg` o `.png`. Para `NUEVA_SOLICITUD` de
+Cafetera adjunta Foto ubicación y Foto layout como `foto-ubicacion-<id_peticion>` y
+`foto-layout-<id_peticion>` con su extensión. No crea archivos de Drive ni incluye enlaces. Solo se
+muestran campos con valor; el HTML escapa los datos y conserva los saltos
 de línea en Comentarios. El saludo, la frase principal y el cierre son textos fijos de la aplicación;
 incorporan el nombre del usuario y el identificador de la solicitud. El asunto y el cuerpo de la
 solicitud de acceso también son fijos e incorporan el email de la cuenta.
@@ -498,8 +507,9 @@ producción ni se envían correos reales durante pruebas sin autorización.
   del navegador y la versión del despliegue. Verificar las columnas obligatorias de `Registros`.
 - `.clasp.json`, `*.gsheet`, credenciales e IDs no se versionan.
 - Los valores de hojas se tratan como configuración administrada, no como confianza del cliente.
-- No hay Drive, UrlFetch, Admin SDK ni servicios avanzados. La foto de `ERROR_PANTALLA` se conserva
-  solo en memoria durante la ejecución y se adjunta al correo; no se persiste en Sheets, Logs,
+- No hay Drive, UrlFetch, Admin SDK ni servicios avanzados. Las fotos de `ERROR_PANTALLA` y de
+  `NUEVA_SOLICITUD` de Cafetera se conservan solo en memoria durante la ejecución y se adjuntan al
+  correo; no se persisten en Sheets, Logs,
   Properties, caché ni Drive.
 - No se ha verificado el comportamiento integrado de identidad, correo y permisos en un despliegue
   real durante esta regeneración.

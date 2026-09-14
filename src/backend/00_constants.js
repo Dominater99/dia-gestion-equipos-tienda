@@ -137,7 +137,9 @@ const VALIDATION_MESSAGES = Object.freeze({
   PHOTO_REQUIRED: 'El campo Foto es obligatorio.',
   PHOTO_TYPE: 'La foto debe ser un archivo JPEG, JPG o PNG.',
   PHOTO_SIZE: 'La foto no puede superar los ' + formatCount_(PHOTO_UPLOAD.MAX_BYTES / (1024 * 1024)) + ' MiB.',
-  PHOTO_CONTENT: 'El contenido de la foto no coincide con el tipo de imagen indicado.'
+  PHOTO_CONTENT: 'El contenido de la foto no coincide con el tipo de imagen indicado.',
+  POWER_OUTLET: 'Indica si hay enchufe disponible.',
+  WATER_OUTLET: 'Indica si hay toma de agua disponible.'
 });
 const DAILY_REQUEST_LIMIT_DEFAULT = 10;
 const REQUEST_COUNTER_KEY = 'ULTIMO_ID_PETICION';
@@ -166,6 +168,10 @@ const MAIL_FIELD_LABELS = Object.freeze({
   WITHDRAWAL_DEADLINE: 'Fecha máxima de retirada: ',
   SERVICE_NOW: 'Código ServiceNow: ',
   PHOTO: 'Foto: ',
+  LOCATION_PHOTO: 'Foto ubicación: ',
+  LAYOUT_PHOTO: 'Foto layout: ',
+  POWER_OUTLET: 'Enchufe disponible: ',
+  WATER_OUTLET: 'Toma de agua disponible: ',
   COMMENTS: 'Comentarios: '
 });
 const UI_TEXT_DEFAULTS = Object.freeze({

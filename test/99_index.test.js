@@ -110,6 +110,13 @@ describe('99_index - contrato visual y accesible', function () {
     expect(html).toContain('--color-store-card: #b8191c');
     expect(html).toContain('renderStoreCard(card, result.store)');
     expect(html).toContain('inputRow.hidden = true');
+    expect(html).toContain("management === 'NUEVA_SOLICITUD'");
+    expect(html).toContain("field('enchufeDisponible', '¿Enchufe disponible?', 'yes-no', true)");
+    expect(html).toContain("field('tomaAguaDisponible', '¿Toma de agua disponible?', 'yes-no', true)");
+    expect(html).toContain("field('fotoUbicacion', 'Foto ubicación', 'photo', true");
+    expect(html).toContain("field('fotoLayout', 'Foto layout', 'photo', true");
+    expect(html).toContain("['SI', 'NO'].forEach(function (choice)");
+    expect(html).toContain('choice-group__option--selected');
     expect(html).toContain("management === 'ERROR_PANTALLA' && element.equipo === 'CAFETERA'");
     expect(html).toContain("field('foto', 'Foto', 'photo', true");
     expect(html).toContain("control.accept = 'image/jpeg,image/png,.jpeg,.jpg,.png'");

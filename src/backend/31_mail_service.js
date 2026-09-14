@@ -64,16 +64,21 @@ function sendConfirmationEmail_(currentUser, idPeticion, element, payload, syste
     body: body,
     htmlBody: htmlBody
   };
-  const attachment = buildPhotoAttachment_(idPeticion, payload);
-  if (attachment) options.attachments = [attachment];
+  const attachments = buildPhotoAttachments_(idPeticion, payload);
+  if (attachments.length) options.attachments = attachments;
   MailApp.sendEmail(options);
 }
 
-function buildPhotoAttachment_(idPeticion, payload) {
-  const photo = payload && payload._photoAttachment;
-  if (!photo) return null;
-  const extension = photo.mimeType === 'image/png' ? 'png' : 'jpg';
-  return Utilities.newBlob(photo.bytes, photo.mimeType, 'foto-' + idPeticion + '.' + extension);
+function buildPhotoAttachments_(idPeticion, payload) {
+  const photos = payload && (payload._photoAttachments ||
+    (payload._photoAttachment ? [payload._photoAttachment] : []));
+  if (!photos || !photos.length) return [];
+  return photos.map(function (photo) {
+    const extension = photo.mimeType === 'image/png' ? 'png' : 'jpg';
+    const suffix = photo.fieldName === 'fotoUbicacion' ? '-ubicacion' :
+      photo.fieldName === 'fotoLayout' ? '-layout' : '';
+    return Utilities.newBlob(photo.bytes, photo.mimeType, 'foto' + suffix + '-' + idPeticion + '.' + extension);
+  });
 }
 
 /** Acepta una sola dirección por celda y evita destinatarios adicionales inyectados. */
@@ -142,9 +147,19 @@ function confirmationFields_(element, payload) {
     [MAIL_FIELD_LABELS.END_DATE, payload.fechaFin],
     [MAIL_FIELD_LABELS.WITHDRAWAL_DEADLINE, payload.fechaMaximaRetirada],
     [MAIL_FIELD_LABELS.SERVICE_NOW, payload.codigoServiceNow],
+    [MAIL_FIELD_LABELS.POWER_OUTLET, payload.enchufeDisponible],
+    [MAIL_FIELD_LABELS.WATER_OUTLET, payload.tomaAguaDisponible],
     [MAIL_FIELD_LABELS.PHOTO, payload._photoAttachment ? 'Adjunta al correo' : ''],
+    [MAIL_FIELD_LABELS.LOCATION_PHOTO, hasPhotoAttachment_(payload, 'fotoUbicacion') ? 'Adjunta al correo' : ''],
+    [MAIL_FIELD_LABELS.LAYOUT_PHOTO, hasPhotoAttachment_(payload, 'fotoLayout') ? 'Adjunta al correo' : ''],
     [MAIL_FIELD_LABELS.COMMENTS, payload.comentarios]
   ].filter(function (entry) { return entry[1] !== null && entry[1] !== undefined && entry[1] !== ''; });
+}
+
+function hasPhotoAttachment_(payload, fieldName) {
+  return Boolean(payload && payload._photoAttachments && payload._photoAttachments.some(function (photo) {
+    return photo.fieldName === fieldName;
+  }));
 }
 
 function buildConfirmationEmailBody_(currentUser, idPeticion, element, payload) {
