@@ -3,3 +3,5 @@ coverage/
 .clasp.json
 *.gsheet
 desktop.ini
+.tmp.drivedownload/
+.tmp.driveupload/
