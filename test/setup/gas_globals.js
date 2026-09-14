@@ -214,6 +214,17 @@ global.Utilities = {
     if (algorithm !== 'SHA_256') throw new Error('Digest no simulado: ' + algorithm);
     return Array.from(crypto.createHash('sha256').update(String(value), 'utf8').digest());
   },
+  base64Decode: function (value) {
+    return Array.from(Buffer.from(String(value), 'base64'));
+  },
+  newBlob: function (bytes, contentType, name) {
+    const blobBytes = Array.from(bytes || []);
+    return {
+      getBytes: function () { return blobBytes.slice(); },
+      getContentType: function () { return contentType; },
+      getName: function () { return name; }
+    };
+  },
   formatDate: function (date, timeZone, format) {
     const d = date instanceof Date ? date : new Date(date);
     const values = {};

@@ -190,6 +190,7 @@ function normalizeRequestStores_(element, payload, visibleStores) {
   ['fechaLimiteRecogida', 'fechaInicio', 'fechaFin', 'fechaMaximaRetirada'].forEach(function (fieldName) {
     if (allowedDates.indexOf(fieldName) === -1) delete result[fieldName];
   });
+  normalizeRequestPhoto_(element, result);
   result._storeDetails = {};
   const storeFields = element.tipo_gestion === TIPOS_GESTION.MOVIMIENTO
     ? ['tiendaOrigen', 'tiendaDestino']
@@ -270,6 +271,7 @@ function validateRequestPayload_(element, payload) {
   }
 
   validateFutureDates_(payload);
+  validatePhotoPayloadMetadata_(element, payload.foto);
 
   const codigo = String(payload.codigoServiceNow || '').trim();
   if (
@@ -290,6 +292,57 @@ function validateRequestPayload_(element, payload) {
   if (comments.length > MAX_COMMENT_LENGTH) {
     throw publicError_(VALIDATION_MESSAGES.COMMENT_LIMIT);
   }
+}
+
+function requiresPhoto_(element) {
+  return element && element.equipo === EQUIPOS.CAFETERA &&
+    element.tipo_gestion === TIPOS_GESTION.ERROR_PANTALLA;
+}
+
+function validatePhotoPayloadMetadata_(element, photo) {
+  if (!requiresPhoto_(element)) return;
+  if (!photo || typeof photo !== 'object' || Array.isArray(photo)) {
+    throw publicError_(VALIDATION_MESSAGES.PHOTO_REQUIRED);
+  }
+  const mimeType = String(photo.mimeType || '').trim().toLowerCase();
+  if (!Object.prototype.hasOwnProperty.call(PHOTO_UPLOAD.SIGNATURES, mimeType)) {
+    throw publicError_(VALIDATION_MESSAGES.PHOTO_TYPE);
+  }
+  const base64 = String(photo.base64 || '');
+  if (!base64) throw publicError_(VALIDATION_MESSAGES.PHOTO_REQUIRED);
+  if (base64.length > PHOTO_UPLOAD.MAX_BASE64_LENGTH) {
+    throw publicError_(VALIDATION_MESSAGES.PHOTO_SIZE);
+  }
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(base64)) {
+    throw publicError_(VALIDATION_MESSAGES.PHOTO_CONTENT);
+  }
+}
+
+function normalizeRequestPhoto_(element, payload) {
+  const photo = payload.foto;
+  delete payload.foto;
+  if (!requiresPhoto_(element)) return;
+
+  const mimeType = String(photo.mimeType || '').trim().toLowerCase();
+  let bytes;
+  try {
+    bytes = Utilities.base64Decode(String(photo.base64 || ''));
+  } catch {
+    throw publicError_(VALIDATION_MESSAGES.PHOTO_CONTENT);
+  }
+  if (!bytes || !bytes.length) throw publicError_(VALIDATION_MESSAGES.PHOTO_REQUIRED);
+  if (bytes.length > PHOTO_UPLOAD.MAX_BYTES) throw publicError_(VALIDATION_MESSAGES.PHOTO_SIZE);
+  if (!hasPhotoSignature_(bytes, PHOTO_UPLOAD.SIGNATURES[mimeType])) {
+    throw publicError_(VALIDATION_MESSAGES.PHOTO_CONTENT);
+  }
+  payload._photoAttachment = { bytes: bytes, mimeType: mimeType };
+}
+
+function hasPhotoSignature_(bytes, signature) {
+  if (!signature || bytes.length < signature.length) return false;
+  return signature.every(function (value, index) {
+    return (Number(bytes[index]) & 255) === value;
+  });
 }
 
 /**
@@ -504,6 +557,10 @@ if (typeof module !== 'undefined') {
     isValidIsoDate_,
     normalizeCommentText_,
     normalizeRequestStores_,
+    requiresPhoto_,
+    validatePhotoPayloadMetadata_,
+    normalizeRequestPhoto_,
+    hasPhotoSignature_,
     registerRequest_,
     generateRequestId_,
     generateRequestIdWithinLock_,

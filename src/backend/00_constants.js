@@ -98,7 +98,8 @@ const TIPOS_GESTION = {
   DESCONEXION_TEMPORAL: 'DESCONEXION_TEMPORAL',
   RETIRADA: 'RETIRADA',
   INCIDENCIA_SERVICENOW: 'INCIDENCIA_SERVICENOW',
-  RECLAMACION_SIN_PARTE: 'RECLAMACION_SIN_PARTE'
+  RECLAMACION_SIN_PARTE: 'RECLAMACION_SIN_PARTE',
+  ERROR_PANTALLA: 'ERROR_PANTALLA'
 };
 
 // Contrato único para las validaciones de servidor y la plantilla del cliente.
@@ -110,6 +111,14 @@ const SERVICENOW_PATTERN = new RegExp(
 );
 const STORE_ID_PATTERN = new RegExp('^[0-9]{1,' + STORE_ID_MAX_LENGTH + '}$');
 const MAX_COMMENT_LENGTH = 2000;
+const PHOTO_UPLOAD = Object.freeze({
+  MAX_BYTES: 10 * 1024 * 1024,
+  MAX_BASE64_LENGTH: Math.ceil((10 * 1024 * 1024) / 3) * 4,
+  SIGNATURES: Object.freeze({
+    'image/jpeg': Object.freeze([0xff, 0xd8, 0xff]),
+    'image/png': Object.freeze([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  })
+});
 const REQUEST_ID_PREFIX = 'SOL';
 const REQUEST_ID_MIN_DIGITS = 4;
 const REQUEST_COUNTER_INITIAL_VALUE = 0;
@@ -124,7 +133,11 @@ const VALIDATION_MESSAGES = Object.freeze({
   SERVICE_NOW: 'El código de ServiceNow debe tener el formato ' + SERVICE_NOW_PREFIX +
     ' seguido de ' + SERVICE_NOW_DIGITS + ' dígitos.',
   COMMENT_LIMIT: 'El campo Comentarios no puede superar los ' +
-    formatCount_(MAX_COMMENT_LENGTH) + ' caracteres.'
+    formatCount_(MAX_COMMENT_LENGTH) + ' caracteres.',
+  PHOTO_REQUIRED: 'El campo Foto es obligatorio.',
+  PHOTO_TYPE: 'La foto debe ser un archivo JPEG, JPG o PNG.',
+  PHOTO_SIZE: 'La foto no puede superar los ' + formatCount_(PHOTO_UPLOAD.MAX_BYTES / (1024 * 1024)) + ' MiB.',
+  PHOTO_CONTENT: 'El contenido de la foto no coincide con el tipo de imagen indicado.'
 });
 const DAILY_REQUEST_LIMIT_DEFAULT = 10;
 const REQUEST_COUNTER_KEY = 'ULTIMO_ID_PETICION';
@@ -152,6 +165,7 @@ const MAIL_FIELD_LABELS = Object.freeze({
   END_DATE: 'Fecha de fin: ',
   WITHDRAWAL_DEADLINE: 'Fecha máxima de retirada: ',
   SERVICE_NOW: 'Código ServiceNow: ',
+  PHOTO: 'Foto: ',
   COMMENTS: 'Comentarios: '
 });
 const UI_TEXT_DEFAULTS = Object.freeze({
@@ -237,6 +251,7 @@ if (typeof module !== 'undefined') {
     SERVICE_NOW_DIGITS,
     STORE_ID_MAX_LENGTH,
     MAX_COMMENT_LENGTH,
+    PHOTO_UPLOAD,
     REQUEST_ID_PREFIX,
     REQUEST_ID_MIN_DIGITS,
     REQUEST_COUNTER_INITIAL_VALUE,

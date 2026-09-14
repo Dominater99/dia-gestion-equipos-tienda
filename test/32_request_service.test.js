@@ -105,6 +105,61 @@ describe('32_request_service - validateRequestPayload_', function () {
     }).not.toThrow();
   });
 
+  test('exige una foto JPEG o PNG válida para Error en pantalla de Cafetera', function () {
+    const element = { tipo_gestion: 'ERROR_PANTALLA', equipo: 'CAFETERA', requiere_service_now: 'NO' };
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+    const validPhoto = { mimeType: 'image/png', base64: png.toString('base64') };
+
+    expect(function () {
+      validateRequestPayload_(element, { tienda: '0001', comentarios: 'Pantalla sin imagen.' });
+    }).toThrow(/Foto.*obligatorio/);
+    expect(function () {
+      validateRequestPayload_(element, {
+        tienda: '0001', comentarios: 'Tipo no permitido.',
+        foto: { mimeType: 'image/gif', base64: validPhoto.base64 }
+      });
+    }).toThrow(/JPEG, JPG o PNG/);
+    expect(function () {
+      validateRequestPayload_(element, {
+        tienda: '0001', comentarios: 'Firma no válida.',
+        foto: { mimeType: 'image/png', base64: Buffer.from([1, 2, 3]).toString('base64') }
+      });
+    }).not.toThrow();
+    expect(function () {
+      validateRequestPayload_(element, {
+        tienda: '0001', comentarios: 'Foto correcta.', foto: validPhoto
+      });
+    }).not.toThrow();
+  });
+
+  test('descarta fotos ajenas y conserva solo en memoria el adjunto validado', function () {
+    const element = { tipo_gestion: 'ERROR_PANTALLA', equipo: 'CAFETERA' };
+    const payload = {
+      foto: {
+        mimeType: 'image/png',
+        base64: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]).toString('base64')
+      }
+    };
+
+    normalizeRequestPhoto_(element, payload);
+    expect(payload.foto).toBeUndefined();
+    expect(payload._photoAttachment.mimeType).toBe('image/png');
+    expect(payload._photoAttachment.bytes).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+
+    const unrelated = { foto: payload._photoAttachment };
+    normalizeRequestPhoto_({ tipo_gestion: 'RETIRADA', equipo: 'CAFETERA' }, unrelated);
+    expect(unrelated.foto).toBeUndefined();
+    expect(unrelated._photoAttachment).toBeUndefined();
+  });
+
+  test('rechaza la firma binaria incorrecta antes de registrar la solicitud', function () {
+    const element = { tipo_gestion: 'ERROR_PANTALLA', equipo: 'CAFETERA' };
+    const payload = {
+      foto: { mimeType: 'image/png', base64: Buffer.from([1, 2, 3, 4]).toString('base64') }
+    };
+    expect(function () { normalizeRequestPhoto_(element, payload); }).toThrow(/contenido.*foto/i);
+  });
+
   test('normaliza líneas vacías, espacios repetidos y caracteres invisibles', function () {
     expect(normalizeCommentText_('  Primera   línea \r\n\r\n\tSegunda\u00a0  línea\u200b  '))
       .toBe('Primera línea\nSegunda línea');
@@ -255,6 +310,34 @@ describe('RequestService - submitRequest', function () {
     });
     expect(JSON.stringify(logContext)).not.toContain('Retirada coordinada con la tienda.');
     expect(JSON.stringify(logContext)).not.toContain('AV JUAN XXIII');
+  });
+
+  test('registra Error en pantalla sin persistir la foto y la adjunta al correo', function () {
+    const sheets = buildFixtures('ACTIVO', 'ACTIVE');
+    sheets.Elementos._getRawValues()[1] = [
+      'CAF-ERROR-PANTALLA', 'CAFETERA', '', 'ERROR_PANTALLA', '', 'Error en pantalla',
+      'ACTIVE', 'NO', 'NO', '', 10
+    ];
+    global.Session.getActiveUser = function () {
+      return { getEmail: function () { return 'ana@diagroup.com'; } };
+    };
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+
+    const result = submitRequest({
+      idElemento: 'CAF-ERROR-PANTALLA',
+      tienda: '0001',
+      comentarios: 'La pantalla muestra un error.',
+      foto: { mimeType: 'image/png', base64: png.toString('base64') }
+    });
+
+    expect(result.success).toBe(true);
+    expect(sheets.Registros._getRawValues()[1]).toHaveLength(21);
+    expect(JSON.stringify(sheets.Registros._getRawValues()[1])).not.toContain(png.toString('base64'));
+    expect(global.MailApp.sentEmails[0].attachments).toHaveLength(1);
+    expect(global.MailApp.sentEmails[0].attachments[0].getName()).toBe(
+      'foto-' + result.idPeticion + '.png'
+    );
+    expect(global.MailApp.sentEmails[0].attachments[0].getBytes()).toEqual(Array.from(png));
   });
 
   test('no genera ID ni graba un movimiento con la misma tienda de origen y destino', function () {

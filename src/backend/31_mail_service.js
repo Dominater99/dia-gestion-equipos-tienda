@@ -56,14 +56,24 @@ function sendConfirmationEmail_(currentUser, idPeticion, element, payload, syste
   const body = buildConfirmationEmailBody_(currentUser, idPeticion, element, payload);
   const htmlBody = buildConfirmationEmailHtml_(currentUser, idPeticion, element, payload);
 
-  MailApp.sendEmail({
+  const options = {
     to: normalizeSingleEmail_(currentUser.email, 'email del usuario'),
     cc: ccList.join(','),
     name: senderName,
     subject: subject,
     body: body,
     htmlBody: htmlBody
-  });
+  };
+  const attachment = buildPhotoAttachment_(idPeticion, payload);
+  if (attachment) options.attachments = [attachment];
+  MailApp.sendEmail(options);
+}
+
+function buildPhotoAttachment_(idPeticion, payload) {
+  const photo = payload && payload._photoAttachment;
+  if (!photo) return null;
+  const extension = photo.mimeType === 'image/png' ? 'png' : 'jpg';
+  return Utilities.newBlob(photo.bytes, photo.mimeType, 'foto-' + idPeticion + '.' + extension);
 }
 
 /** Acepta una sola dirección por celda y evita destinatarios adicionales inyectados. */
@@ -132,6 +142,7 @@ function confirmationFields_(element, payload) {
     [MAIL_FIELD_LABELS.END_DATE, payload.fechaFin],
     [MAIL_FIELD_LABELS.WITHDRAWAL_DEADLINE, payload.fechaMaximaRetirada],
     [MAIL_FIELD_LABELS.SERVICE_NOW, payload.codigoServiceNow],
+    [MAIL_FIELD_LABELS.PHOTO, payload._photoAttachment ? 'Adjunta al correo' : ''],
     [MAIL_FIELD_LABELS.COMMENTS, payload.comentarios]
   ].filter(function (entry) { return entry[1] !== null && entry[1] !== undefined && entry[1] !== ''; });
 }

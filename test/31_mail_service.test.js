@@ -48,6 +48,29 @@ describe('31_mail_service', function () {
     expect(sent.htmlBody).not.toMatch(/<button\b|Abrir la aplicación|<a\b/i);
   });
 
+  test('adjunta la foto de Error en pantalla directamente al correo', function () {
+    sendConfirmationEmail_(
+      { email: 'ana@diagroup.com', nombre: 'Ana' },
+      'SOL-20260910-0001',
+      Object.assign({}, element, { tipo_gestion: 'ERROR_PANTALLA', etiqueta: 'Error en pantalla' }),
+      {
+        tienda: '0001',
+        _photoAttachment: {
+          bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00],
+          mimeType: 'image/png'
+        }
+      }
+    );
+
+    const sent = global.MailApp.sentEmails[0];
+    expect(sent.attachments).toHaveLength(1);
+    expect(sent.attachments[0].getContentType()).toBe('image/png');
+    expect(sent.attachments[0].getName()).toBe('foto-SOL-20260910-0001.png');
+    expect(sent.body).toContain('Foto: Adjunta al correo');
+    expect(sent.htmlBody).toContain('>Foto</td>');
+    expect(sent.htmlBody).toContain('>Adjunta al correo</td>');
+  });
+
   test('usa el nombre de remitente configurado en Sistema', function () {
     resetMockSheets({
       Sistema: [

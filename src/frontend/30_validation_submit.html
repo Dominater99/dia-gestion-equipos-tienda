@@ -39,6 +39,11 @@
     }
 
     function getFieldErrorMessage(definition, control) {
+      if (definition.type === 'photo') {
+        if (control.dataset.photoLoading === 'true') return 'La foto se está procesando.';
+        if (!control._photoPayload) return 'El campo Foto es obligatorio.';
+        return '';
+      }
       const value = control.value.trim();
       if (definition.type === 'date') {
         const tomorrow = getTomorrowDateInAppTimeZone();
@@ -120,8 +125,10 @@
         const message = getFieldErrorMessage(definition, control);
 
         showFieldError(control, error, message);
-        if (message && !firstInvalid) firstInvalid = control;
-        payload[definition.name] = control.value.trim();
+        if (message && !firstInvalid) firstInvalid = control._photoFocus || control;
+        payload[definition.name] = definition.type === 'photo'
+          ? control._photoPayload
+          : control.value.trim();
       });
 
       if (firstInvalid) {

@@ -641,6 +641,88 @@
       font-weight: 800;
     }
 
+    .photo-upload {
+      display: grid;
+      gap: var(--space-4);
+    }
+
+    .photo-upload__input {
+      position: absolute;
+      width: .0625rem;
+      height: .0625rem;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .photo-upload__dropzone,
+    .photo-upload__selected {
+      display: flex;
+      min-height: 7.5rem;
+      align-items: center;
+      justify-content: center;
+      border: .125rem dashed var(--color-border-strong);
+      border-radius: var(--radius-control);
+      padding: var(--space-6);
+      text-align: center;
+    }
+
+    .photo-upload__dropzone {
+      flex-direction: column;
+      gap: var(--space-2);
+      color: var(--color-text-muted);
+      cursor: pointer;
+    }
+
+    .photo-upload__dropzone strong {
+      color: var(--color-text-primary);
+    }
+
+    .photo-upload__dropzone:hover,
+    .photo-upload__dropzone:focus-visible,
+    .photo-upload__dropzone.photo-upload--dragging {
+      border-color: var(--color-primary);
+      outline: none;
+      background: var(--color-primary-light);
+    }
+
+    .photo-upload__selected {
+      min-height: var(--touch-target);
+      justify-content: space-between;
+      gap: var(--space-5);
+      border-style: solid;
+      color: var(--color-text-primary);
+      background: var(--color-success-background);
+      text-align: left;
+    }
+
+    .photo-upload__selected span {
+      overflow-wrap: anywhere;
+    }
+
+    .photo-upload__remove {
+      display: grid;
+      width: var(--touch-target);
+      height: var(--touch-target);
+      flex: 0 0 auto;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      color: var(--color-primary);
+      background: transparent;
+      cursor: pointer;
+      font-size: var(--font-size-8);
+      line-height: 1;
+    }
+
+    .photo-upload__remove:hover,
+    .photo-upload__remove:focus-visible {
+      outline: none;
+      color: #fff;
+      background: var(--color-primary);
+    }
+
     .result-dialog {
       width: min(calc(100% - 2rem), 26rem);
       border: .0625rem solid var(--color-border);

@@ -48,6 +48,8 @@ describe('99_index - contrato visual y accesible', function () {
       expect(template.applicationTimeZone).toBe('Europe/Madrid');
       expect(template.logoUrl).toBe(BRAND_ASSETS.LOGO_URL);
       expect(template.commentMaxLength).toBe(MAX_COMMENT_LENGTH);
+      expect(template.photoMaxBytes).toBe(PHOTO_UPLOAD.MAX_BYTES);
+      expect(template.photoMaxSizeDisplay).toBe('10');
       expect(template.storeIdMaxLength).toBe(STORE_ID_MAX_LENGTH);
       expect(template.serviceNowDigits).toBe(SERVICE_NOW_DIGITS);
       expect(template.brandWebsiteUrl).toBeUndefined();
@@ -108,6 +110,13 @@ describe('99_index - contrato visual y accesible', function () {
     expect(html).toContain('--color-store-card: #b8191c');
     expect(html).toContain('renderStoreCard(card, result.store)');
     expect(html).toContain('inputRow.hidden = true');
+    expect(html).toContain("management === 'ERROR_PANTALLA' && element.equipo === 'CAFETERA'");
+    expect(html).toContain("field('foto', 'Foto', 'photo', true");
+    expect(html).toContain("control.accept = 'image/jpeg,image/png,.jpeg,.jpg,.png'");
+    expect(html).toContain("event.clipboardData && event.clipboardData.files");
+    expect(html).toContain("event.dataTransfer && event.dataTransfer.files");
+    expect(html).toContain("control._photoDropZone.hidden = true");
+    expect(html).toContain("control._photoRemove.addEventListener('click', clearPhoto)");
     expect(html).toContain("area.toLocaleString('es-ES'");
   });
 

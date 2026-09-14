@@ -25,6 +25,12 @@
         if (element.equipo === 'LOCKER') {
           fields.push(field('fechaMaximaRetirada', 'Fecha máxima de retirada', 'date', true));
         }
+      } else if (management === 'ERROR_PANTALLA' && element.equipo === 'CAFETERA') {
+        fields = [
+          storeField('tienda', 'Tienda', filterOpen),
+          field('foto', 'Foto', 'photo', true,
+            'Adjunta una imagen JPEG, JPG o PNG de hasta ' + FORM_RULES.photoMaxSizeDisplay + ' MiB.')
+        ];
       } else {
         fields = [storeField('tienda', 'Tienda', filterOpen)];
       }
@@ -113,6 +119,10 @@
       } else if (definition.type === 'textarea') {
         control = document.createElement('textarea');
         control.maxLength = FORM_RULES.commentMaxLength;
+      } else if (definition.type === 'photo') {
+        control = document.createElement('input');
+        control.type = 'file';
+        control.accept = 'image/jpeg,image/png,.jpeg,.jpg,.png';
       } else {
         control = document.createElement('input');
         control.type = definition.type;
@@ -153,6 +163,13 @@
         }
         wrapper.appendChild(guidance);
         control.setAttribute('aria-describedby', hint.id + ' ' + errorId);
+      }
+
+      if (definition.type === 'photo') {
+        wrapper.appendChild(createPhotoUpload(control, label));
+        configurePhotoUpload(control, error);
+        wrapper.appendChild(error);
+        return wrapper;
       }
 
       let inputRow = null;
@@ -222,6 +239,136 @@
       }
       wrapper.appendChild(error);
       return wrapper;
+    }
+
+    function createPhotoUpload(control, label) {
+      control.classList.add('photo-upload__input');
+      const upload = document.createElement('div');
+      upload.className = 'photo-upload';
+      const dropZone = document.createElement('div');
+      dropZone.className = 'photo-upload__dropzone';
+      dropZone.tabIndex = 0;
+      dropZone.setAttribute('role', 'button');
+      dropZone.setAttribute('aria-label', 'Seleccionar, arrastrar o pegar una foto');
+      const title = document.createElement('strong');
+      title.textContent = 'Arrastra una foto, pégala o selecciónala';
+      const detail = document.createElement('span');
+      detail.textContent = 'JPEG, JPG o PNG · máximo ' + FORM_RULES.photoMaxSizeDisplay + ' MiB';
+      dropZone.append(title, detail);
+
+      const selected = document.createElement('div');
+      selected.className = 'photo-upload__selected';
+      selected.hidden = true;
+      const name = document.createElement('span');
+      const remove = document.createElement('button');
+      remove.className = 'photo-upload__remove';
+      remove.type = 'button';
+      remove.setAttribute('aria-label', 'Eliminar foto seleccionada');
+      remove.textContent = '×';
+      selected.append(name, remove);
+      upload.append(control, dropZone, selected);
+      control._photoDropZone = dropZone;
+      control._photoSelected = selected;
+      control._photoName = name;
+      control._photoRemove = remove;
+      control._photoFocus = dropZone;
+      control._photoLabel = label;
+      return upload;
+    }
+
+    function configurePhotoUpload(control, error) {
+      function clearPhoto() {
+        delete control._photoPayload;
+        delete control.dataset.photoLoading;
+        control.value = '';
+        control._photoDropZone.hidden = false;
+        control._photoSelected.hidden = true;
+        control._photoLabel.htmlFor = control.id;
+        control._photoName.textContent = '';
+        showFieldError(control, error, '');
+        refreshSubmitState();
+        control._photoFocus.focus();
+      }
+
+      function setPhoto(file) {
+        if (!file || !/^image\/(jpeg|png)$/.test(String(file.type || ''))) {
+          showFieldError(control, error, 'La foto debe ser un archivo JPEG, JPG o PNG.');
+          refreshSubmitState();
+          return;
+        }
+        if (file.size > FORM_RULES.photoMaxBytes) {
+          showFieldError(control, error,
+            'La foto no puede superar los ' + FORM_RULES.photoMaxSizeDisplay + ' MiB.');
+          refreshSubmitState();
+          return;
+        }
+
+        const reader = new FileReader();
+        control.dataset.photoLoading = 'true';
+        showFieldError(control, error, '');
+        refreshSubmitState();
+        reader.onload = function () {
+          const result = String(reader.result || '');
+          const prefix = 'data:' + file.type + ';base64,';
+          if (!result.startsWith(prefix)) {
+            delete control.dataset.photoLoading;
+            showFieldError(control, error, 'No se pudo procesar la foto seleccionada.');
+            refreshSubmitState();
+            return;
+          }
+          control._photoPayload = { mimeType: file.type, base64: result.slice(prefix.length) };
+          delete control.dataset.photoLoading;
+          control.value = '';
+          control._photoName.textContent = file.name || 'Imagen pegada';
+          control._photoDropZone.hidden = true;
+          control._photoSelected.hidden = false;
+          control._photoLabel.removeAttribute('for');
+          showFieldError(control, error, '');
+          refreshSubmitState();
+        };
+        reader.onerror = function () {
+          delete control.dataset.photoLoading;
+          showFieldError(control, error, 'No se pudo leer la foto seleccionada.');
+          refreshSubmitState();
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function setPhotoList(files) {
+        if (!files || files.length !== 1) {
+          showFieldError(control, error, 'Selecciona una sola foto.');
+          refreshSubmitState();
+          return;
+        }
+        setPhoto(files[0]);
+      }
+
+      control.addEventListener('change', function () { setPhotoList(control.files); });
+      control._photoDropZone.addEventListener('click', function () { control.click(); });
+      control._photoDropZone.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        control.click();
+      });
+      control._photoDropZone.addEventListener('dragover', function (event) {
+        event.preventDefault();
+        control._photoDropZone.classList.add('photo-upload--dragging');
+      });
+      control._photoDropZone.addEventListener('dragleave', function () {
+        control._photoDropZone.classList.remove('photo-upload--dragging');
+      });
+      control._photoDropZone.addEventListener('drop', function (event) {
+        event.preventDefault();
+        control._photoDropZone.classList.remove('photo-upload--dragging');
+        setPhotoList(event.dataTransfer && event.dataTransfer.files);
+      });
+      control._photoDropZone.addEventListener('paste', function (event) {
+        const files = event.clipboardData && event.clipboardData.files;
+        if (!files || !files.length) return;
+        event.preventDefault();
+        setPhotoList(files);
+      });
+      control._photoRemove.addEventListener('click', clearPhoto);
     }
 
     function createStoreCard(fieldName) {

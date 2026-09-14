@@ -38,7 +38,8 @@ El flujo es:
 8. volver al inicio después de una alta correcta.
 
 Quedan fuera de alcance adjuntos, aprobación, seguimiento, edición, cancelación, histórico,
-estadísticas, exportaciones, administración desde la web y APIs HTTP entrantes.
+estadísticas, exportaciones, administración desde la web y APIs HTTP entrantes, salvo una única
+foto obligatoria en la opción `Error en pantalla` de Cafetera, que se adjunta directamente al correo.
 
 ## 3. Plataforma
 
@@ -162,9 +163,16 @@ Tipos de gestión cerrados:
 - `DESCONEXION_TEMPORAL`;
 - `RETIRADA`;
 - `INCIDENCIA_SERVICENOW`;
-- `RECLAMACION_SIN_PARTE`.
+- `RECLAMACION_SIN_PARTE`;
+- `ERROR_PANTALLA`, únicamente para Cafetera.
 
-El catálogo se mantiene manualmente en la pestaña; la aplicación no inserta filas de ejemplo.
+El catálogo se mantiene manualmente en la pestaña; la aplicación no inserta filas de ejemplo. Para
+habilitar la nueva opción se añade manualmente una fila como esta, ajustando `email_destino` y
+`orden` si corresponde:
+
+```text
+CAF-ERROR-PANTALLA, CAFETERA, , ERROR_PANTALLA, , Error en pantalla, ACTIVE, NO, NO, , 30
+```
 
 ### 5.4. `Sistema`
 
@@ -265,6 +273,7 @@ registra el fallo de `google.script.run` en su propia consola.
 | `RETIRADA` | tienda | fecha máxima obligatoria para lockers |
 | `INCIDENCIA_SERVICENOW` | tienda | código ServiceNow si la fila lo requiere |
 | `RECLAMACION_SIN_PARTE` | tienda | — |
+| `ERROR_PANTALLA` de Cafetera | tienda, foto y comentarios | — |
 
 En `MOVIMIENTO`, tienda de origen y tienda de destino deben ser distintas. Todas las fechas
 introducidas, incluidas las opcionales, deben ser fechas de calendario válidas en formato
@@ -286,6 +295,12 @@ enviará directamente al proveedor», con un contador `N / 2000` a su derecha. E
 fijo de la aplicación. Antes de guardar
 y enviar se eliminan líneas vacías, espacios repetidos y caracteres invisibles; se conservan
 saltos entre líneas con contenido. Los tres campos de tienda aceptan solo 1–5 dígitos.
+Para `ERROR_PANTALLA` de Cafetera, Foto es obligatoria y acepta una sola imagen JPEG/JPG o PNG de
+hasta 10 MiB. La zona de carga admite selección, arrastre y pegado desde el portapapeles; mientras
+hay una foto seleccionada oculta esas opciones y muestra su nombre con una acción «×» para eliminarla.
+El navegador solo usa el tipo MIME como ayuda; el servidor repite el límite y comprueba la firma
+binaria de JPEG o PNG antes de registrar la solicitud.
+
 «Registrar solicitud» permanece desactivado hasta que todos los campos requeridos sean válidos
 y las tiendas y el código ServiceNow se hayan confirmado.
 
@@ -369,11 +384,13 @@ deshacer una solicitud ya guardada. Se eliminan saltos de línea del asunto.
 
 El correo de confirmación contiene `body` de texto plano y `htmlBody` con tarjeta centrada,
 cabecera DIA, estado de alta, tabla de datos y pie. La cabecera carga el logo oficial desde
-`https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg`. No incluye el botón «Abrir la aplicación», enlaces, otros recursos remotos,
-adjuntos ni datos de otras solicitudes. Solo se muestran campos con
-valor; el HTML escapa los datos y conserva los saltos de línea en Comentarios. El saludo, la frase principal y el cierre son textos fijos de la aplicación; incorporan el
-nombre del usuario y el identificador de la solicitud. El asunto y el cuerpo de la solicitud de
-acceso también son fijos e incorporan el email de la cuenta.
+`https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg`. No incluye el botón «Abrir la aplicación», enlaces, otros recursos remotos
+ni datos de otras solicitudes. Solo para `ERROR_PANTALLA` de Cafetera incorpora la foto validada
+como un adjunto binario, con nombre `foto-<id_peticion>.jpg` o `.png`; no crea archivos de Drive ni
+incluye enlaces. Solo se muestran campos con valor; el HTML escapa los datos y conserva los saltos
+de línea en Comentarios. El saludo, la frase principal y el cierre son textos fijos de la aplicación;
+incorporan el nombre del usuario y el identificador de la solicitud. El asunto y el cuerpo de la
+solicitud de acceso también son fijos e incorporan el email de la cuenta.
 
 ## 9. Interfaces públicas
 
@@ -453,7 +470,8 @@ Preparación inicial de una hoja:
 1. vincular el proyecto de Apps Script a la hoja correcta;
 2. crear manualmente `Sistema` con la cabecera `clave, valor` y los parámetros requeridos;
 3. crear manualmente `Usuarios`, `Tiendas`, `Elementos` y `Registros` con sus cabeceras;
-4. cargar y revisar los datos maestros de tiendas y elementos;
+4. cargar y revisar los datos maestros de tiendas y elementos, incluida la fila
+   `CAF-ERROR-PANTALLA` si se habilitará esa gestión;
 5. completar `EMAIL_ADMIN`, `EMAIL_CC_SOPORTE` y los `email_destino`; revisar
    `NOMBRE_REMITENTE_EMAIL`, `ASUNTO_EMAIL` (o temporalmente `ASUNTO_EMAL`), `ENTORNO`,
    `LIMITE_REGISTROS_DIARIOS_USUARIO`, los límites por ventana y la caché;
@@ -480,7 +498,9 @@ producción ni se envían correos reales durante pruebas sin autorización.
   del navegador y la versión del despliegue. Verificar las columnas obligatorias de `Registros`.
 - `.clasp.json`, `*.gsheet`, credenciales e IDs no se versionan.
 - Los valores de hojas se tratan como configuración administrada, no como confianza del cliente.
-- No hay Drive, adjuntos, UrlFetch, Admin SDK ni servicios avanzados.
+- No hay Drive, UrlFetch, Admin SDK ni servicios avanzados. La foto de `ERROR_PANTALLA` se conserva
+  solo en memoria durante la ejecución y se adjunta al correo; no se persiste en Sheets, Logs,
+  Properties, caché ni Drive.
 - No se ha verificado el comportamiento integrado de identidad, correo y permisos en un despliegue
   real durante esta regeneración.
 - No hay idempotencia persistente para las altas: un reenvío tras perder la respuesta puede

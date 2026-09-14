@@ -14,6 +14,8 @@ function doGet() {
   template.applicationTimeZone = Session.getScriptTimeZone();
   template.commentMaxLength = MAX_COMMENT_LENGTH;
   template.commentMaxLengthDisplay = formatCount_(MAX_COMMENT_LENGTH);
+  template.photoMaxBytes = PHOTO_UPLOAD.MAX_BYTES;
+  template.photoMaxSizeDisplay = formatCount_(PHOTO_UPLOAD.MAX_BYTES / (1024 * 1024));
   template.storeIdMaxLength = STORE_ID_MAX_LENGTH;
   template.serviceNowPrefix = SERVICE_NOW_PREFIX;
   template.serviceNowDigits = SERVICE_NOW_DIGITS;
