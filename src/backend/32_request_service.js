@@ -377,9 +377,31 @@ function validateSinglePhotoPayloadMetadata_(photo) {
   if (base64.length > PHOTO_UPLOAD.MAX_BASE64_LENGTH) {
     throw publicError_(VALIDATION_MESSAGES.PHOTO_SIZE);
   }
-  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(base64)) {
+  if (!isValidBase64_(base64)) {
     throw publicError_(VALIDATION_MESSAGES.PHOTO_CONTENT);
   }
+}
+
+/** Valida Base64 de forma iterativa para admitir fotos grandes sin agotar la pila. */
+function isValidBase64_(value) {
+  const length = value.length;
+  if (!length || length % 4 !== 0) return false;
+
+  let contentEnd = length;
+  if (value.charCodeAt(contentEnd - 1) === 61) contentEnd--;
+  if (value.charCodeAt(contentEnd - 1) === 61) contentEnd--;
+  if (length - contentEnd > 2) return false;
+
+  for (let index = 0; index < contentEnd; index++) {
+    const code = value.charCodeAt(index);
+    const isLetter = (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+    const isDigit = code >= 48 && code <= 57;
+    if (!isLetter && !isDigit && code !== 43 && code !== 47) return false;
+  }
+  for (let index = contentEnd; index < length; index++) {
+    if (value.charCodeAt(index) !== 61) return false;
+  }
+  return true;
 }
 
 function normalizeRequestPhoto_(element, payload) {
@@ -650,6 +672,7 @@ if (typeof module !== 'undefined') {
     normalizeLockerNewRequestFields_,
     validatePhotoPayloadMetadata_,
     validateSinglePhotoPayloadMetadata_,
+    isValidBase64_,
     normalizeRequestPhoto_,
     hasPhotoSignature_,
     registerRequest_,

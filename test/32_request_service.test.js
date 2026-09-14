@@ -231,6 +231,12 @@ describe('32_request_service - validateRequestPayload_', function () {
       .toEqual(['fotoHorario', 'fotoCobertura', 'fotoUbicacion', 'fotoLayout']);
   });
 
+  test('valida Base64 grande de forma iterativa', function () {
+    const largeBase64 = Buffer.alloc(1024 * 1024, 7).toString('base64');
+    expect(isValidBase64_(largeBase64)).toBe(true);
+    expect(isValidBase64_(largeBase64.slice(0, -1) + '!')).toBe(false);
+  });
+
   test('normaliza líneas vacías, espacios repetidos y caracteres invisibles', function () {
     expect(normalizeCommentText_('  Primera   línea \r\n\r\n\tSegunda\u00a0  línea\u200b  '))
       .toBe('Primera línea\nSegunda línea');
