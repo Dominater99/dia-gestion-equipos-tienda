@@ -231,6 +231,12 @@ describe('32_request_service - validateRequestPayload_', function () {
       .toEqual(['fotoHorario', 'fotoCobertura', 'fotoUbicacion', 'fotoLayout']);
   });
 
+  test('rechaza un conjunto de fotos que supera el máximo total', function () {
+    expect(function () {
+      validatePhotoAttachmentsTotalSize_([{ bytes: { length: 11 } }, { bytes: { length: 10 } }], 20);
+    }).toThrow(/total de fotos/i);
+  });
+
   test('valida Base64 grande de forma iterativa', function () {
     const largeBase64 = Buffer.alloc(1024 * 1024, 7).toString('base64');
     expect(isValidBase64_(largeBase64)).toBe(true);

@@ -429,10 +429,20 @@ function normalizeRequestPhoto_(element, payload) {
     }
     return { fieldName: fieldName, bytes: bytes, mimeType: mimeType };
   });
+  validatePhotoAttachmentsTotalSize_(attachments);
   payload._photoAttachments = attachments;
   if (attachments.length === 1 && attachments[0].fieldName === 'foto') {
     payload._photoAttachment = attachments[0];
   }
+}
+
+/** Evita superar el límite de tamaño total de adjuntos de MailApp. */
+function validatePhotoAttachmentsTotalSize_(attachments, maximumBytes) {
+  const limit = maximumBytes === undefined ? PHOTO_UPLOAD.MAX_TOTAL_BYTES : maximumBytes;
+  const totalBytes = attachments.reduce(function (total, attachment) {
+    return total + Number(attachment.bytes.length || 0);
+  }, 0);
+  if (totalBytes > limit) throw publicError_(VALIDATION_MESSAGES.PHOTO_TOTAL_SIZE);
 }
 
 function hasPhotoSignature_(bytes, signature) {
@@ -674,6 +684,7 @@ if (typeof module !== 'undefined') {
     validateSinglePhotoPayloadMetadata_,
     isValidBase64_,
     normalizeRequestPhoto_,
+    validatePhotoAttachmentsTotalSize_,
     hasPhotoSignature_,
     registerRequest_,
     generateRequestId_,

@@ -304,6 +304,9 @@ saltos entre líneas con contenido. Los tres campos de tienda aceptan solo 1–5
 Para `ERROR_PANTALLA` de Cafetera, Foto es obligatoria y acepta una sola imagen JPEG/JPG o PNG de
 hasta 10 MiB. La zona de carga admite selección, arrastre y pegado desde el portapapeles; mientras
 hay una foto seleccionada oculta esas opciones y muestra su nombre con una acción «×» para eliminarla.
+Las fotos superiores a 2 MiB se reducen en el navegador a JPEG, con un lado máximo de 1.600 píxeles,
+antes de enviarse. El límite individual de entrada se conserva en 10 MiB y el conjunto de adjuntos de
+una solicitud no puede superar 20 MiB.
 En `NUEVA_SOLICITUD` de Cafetera, después de validar la tienda se exigen dos controles en botones,
 no desplegables: «¿Enchufe disponible?» y «¿Toma de agua disponible?», ambos `SI` o `NO`, seguidos
 por Foto ubicación y Foto layout, también obligatorias. En `NUEVA_SOLICITUD` de Locker se solicita

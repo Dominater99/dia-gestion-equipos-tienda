@@ -345,6 +345,14 @@
     }
 
     function configurePhotoUpload(control, error) {
+      const optimization = {
+        passthroughMaxBytes: 2 * 1024 * 1024,
+        maxDimension: 1600,
+        targetMaxBytes: 2 * 1024 * 1024,
+        quality: 0.82,
+        minimumQuality: 0.6
+      };
+
       function clearPhoto() {
         delete control._photoPayload;
         delete control.dataset.photoLoading;
@@ -371,20 +379,11 @@
           return;
         }
 
-        const reader = new FileReader();
         control.dataset.photoLoading = 'true';
         showFieldError(control, error, '');
         refreshSubmitState();
-        reader.onload = function () {
-          const result = String(reader.result || '');
-          const prefix = 'data:' + file.type + ';base64,';
-          if (!result.startsWith(prefix)) {
-            delete control.dataset.photoLoading;
-            showFieldError(control, error, 'No se pudo procesar la foto seleccionada.');
-            refreshSubmitState();
-            return;
-          }
-          control._photoPayload = { mimeType: file.type, base64: result.slice(prefix.length) };
+        preparePhotoPayload_(file, optimization).then(function (photoPayload) {
+          control._photoPayload = photoPayload;
           delete control.dataset.photoLoading;
           control.value = '';
           control._photoName.textContent = file.name || 'Imagen pegada';
@@ -393,13 +392,11 @@
           control._photoLabel.removeAttribute('for');
           showFieldError(control, error, '');
           refreshSubmitState();
-        };
-        reader.onerror = function () {
+        }).catch(function () {
           delete control.dataset.photoLoading;
-          showFieldError(control, error, 'No se pudo leer la foto seleccionada.');
+          showFieldError(control, error, 'No se pudo procesar la foto seleccionada.');
           refreshSubmitState();
-        };
-        reader.readAsDataURL(file);
+        });
       }
 
       function setPhotoList(files) {
@@ -437,6 +434,65 @@
         setPhotoList(files);
       });
       control._photoRemove.addEventListener('click', clearPhoto);
+    }
+
+    function preparePhotoPayload_(file, optimization) {
+      return readPhotoAsDataUrl_(file).then(function (dataUrl) {
+        if (file.size <= optimization.passthroughMaxBytes) {
+          return photoPayloadFromDataUrl_(dataUrl, file.type);
+        }
+        return optimizePhotoDataUrl_(dataUrl, optimization, optimization.quality);
+      });
+    }
+
+    function readPhotoAsDataUrl_(file) {
+      return new Promise(function (resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function () { resolve(String(reader.result || '')); };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function photoPayloadFromDataUrl_(dataUrl, mimeType) {
+      const prefix = 'data:' + mimeType + ';base64,';
+      if (!dataUrl.startsWith(prefix)) throw new Error('Formato de imagen inválido.');
+      return { mimeType: mimeType, base64: dataUrl.slice(prefix.length) };
+    }
+
+    function optimizePhotoDataUrl_(dataUrl, optimization, quality) {
+      return new Promise(function (resolve, reject) {
+        const image = new Image();
+        image.onload = function () {
+          const sourceWidth = image.naturalWidth || image.width;
+          const sourceHeight = image.naturalHeight || image.height;
+          const largestSide = Math.max(sourceWidth, sourceHeight);
+          if (!largestSide) { reject(new Error('Dimensiones de imagen inválidas.')); return; }
+          const scale = largestSide > optimization.maxDimension ? optimization.maxDimension / largestSide : 1;
+          const width = Math.max(1, Math.round(sourceWidth * scale));
+          const height = Math.max(1, Math.round(sourceHeight * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const context = canvas.getContext('2d');
+          if (!context) { reject(new Error('No se pudo preparar la foto.')); return; }
+          context.fillStyle = '#ffffff';
+          context.fillRect(0, 0, width, height);
+          context.drawImage(image, 0, 0, width, height);
+          canvas.toBlob(function (blob) {
+            if (!blob) { reject(new Error('No se pudo preparar la foto.')); return; }
+            if (blob.size > optimization.targetMaxBytes && quality > optimization.minimumQuality) {
+              resolve(optimizePhotoDataUrl_(dataUrl, optimization, optimization.minimumQuality));
+              return;
+            }
+            readPhotoAsDataUrl_(blob).then(function (optimizedDataUrl) {
+              resolve(photoPayloadFromDataUrl_(optimizedDataUrl, 'image/jpeg'));
+            }, reject);
+          }, 'image/jpeg', quality);
+        };
+        image.onerror = reject;
+        image.src = dataUrl;
+      });
     }
 
     function createStoreCard(fieldName) {

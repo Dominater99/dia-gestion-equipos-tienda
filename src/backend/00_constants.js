@@ -113,6 +113,8 @@ const STORE_ID_PATTERN = new RegExp('^[0-9]{1,' + STORE_ID_MAX_LENGTH + '}$');
 const MAX_COMMENT_LENGTH = 2000;
 const PHOTO_UPLOAD = Object.freeze({
   MAX_BYTES: 10 * 1024 * 1024,
+  // MailApp limita el conjunto de adjuntos a 25 MiB; se deja margen para el correo.
+  MAX_TOTAL_BYTES: 20 * 1024 * 1024,
   MAX_BASE64_LENGTH: Math.ceil((10 * 1024 * 1024) / 3) * 4,
   SIGNATURES: Object.freeze({
     'image/jpeg': Object.freeze([0xff, 0xd8, 0xff]),
@@ -137,6 +139,8 @@ const VALIDATION_MESSAGES = Object.freeze({
   PHOTO_REQUIRED: 'El campo Foto es obligatorio.',
   PHOTO_TYPE: 'La foto debe ser un archivo JPEG, JPG o PNG.',
   PHOTO_SIZE: 'La foto no puede superar los ' + formatCount_(PHOTO_UPLOAD.MAX_BYTES / (1024 * 1024)) + ' MiB.',
+  PHOTO_TOTAL_SIZE: 'El total de fotos no puede superar los ' +
+    formatCount_(PHOTO_UPLOAD.MAX_TOTAL_BYTES / (1024 * 1024)) + ' MiB.',
   PHOTO_CONTENT: 'El contenido de la foto no coincide con el tipo de imagen indicado.',
   POWER_OUTLET: 'Indica si hay enchufe disponible.',
   WATER_OUTLET: 'Indica si hay toma de agua disponible.'
