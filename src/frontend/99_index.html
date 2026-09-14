@@ -114,6 +114,18 @@
     </div>
   </dialog>
 
+  <dialog class="result-dialog" id="serviceNowInfoDialog" aria-labelledby="serviceNowInfoTitle"
+    aria-describedby="serviceNowInfoMessage">
+    <div class="result-dialog__content">
+      <div class="result-dialog__icon result-dialog__icon--error" aria-hidden="true">!</div>
+      <h2 class="result-dialog__title" id="serviceNowInfoTitle">Aviso sobre ServiceNow</h2>
+      <p class="result-dialog__message" id="serviceNowInfoMessage">Te recordamos que el procedimiento habitual es reclamarlo a través de ServiceNow. Prosiga solo con esta petición en caso de haberlo reclamado y no haya recibido respuesta.</p>
+      <form method="dialog">
+        <button class="button button--primary" type="submit">Entendido</button>
+      </form>
+    </div>
+  </dialog>
+
   <script>
     const APP_TIME_ZONE = '<?= applicationTimeZone ?>';
     const FORM_RULES = Object.freeze({

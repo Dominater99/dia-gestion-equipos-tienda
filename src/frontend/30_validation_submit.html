@@ -168,6 +168,11 @@
       showResult(false, 'No se ha podido registrar', appState.uiText.submissionTransportFailure);
     }
 
+    function showServiceNowInfo() {
+      const dialog = document.getElementById('serviceNowInfoDialog');
+      if (!dialog.open) dialog.showModal();
+    }
+
     function showResult(success, title, message) {
       const icon = document.getElementById('resultIcon');
       icon.textContent = success ? '✓' : '!';

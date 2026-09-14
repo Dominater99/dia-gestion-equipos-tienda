@@ -353,6 +353,7 @@
       control.addEventListener('input', function () {
         control.value = control.value.toUpperCase();
         delete control.dataset.confirmedCode;
+        delete control.dataset.serviceNowNoticeCode;
         status.hidden = true;
         showFieldError(control, error, '');
         refreshSubmitState();
@@ -373,6 +374,10 @@
         showFieldError(control, error, '');
         control.blur();
         refreshSubmitState();
+        if (control.dataset.serviceNowNoticeCode !== code) {
+          control.dataset.serviceNowNoticeCode = code;
+          showServiceNowInfo();
+        }
       }
 
       action.addEventListener('click', confirmCode);

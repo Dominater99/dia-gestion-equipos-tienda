@@ -116,6 +116,9 @@ describe('99_index - contrato visual y accesible', function () {
     expect(html).toContain("action.textContent = definition.type === 'store' ? 'Buscar' : 'Introducir'");
     expect(html).toContain("control.dataset.resolvedCode !== value");
     expect(html).toContain("control.dataset.confirmedCode !== value");
+    expect(html).toContain('id="serviceNowInfoDialog"');
+    expect(html).toContain('Te recordamos que el procedimiento habitual es reclamarlo a través de ServiceNow.');
+    expect(html).toContain('showServiceNowInfo();');
     expect(html).toContain("counter.textContent = '0 / ' + FORM_RULES.commentMaxLength");
     expect(html).toContain('button.disabled = !getFormFieldDefinitions');
     expect(html).toContain('control.value = normalizeCommentText(control.value)');

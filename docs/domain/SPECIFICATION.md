@@ -274,6 +274,9 @@ cumple la regla; el servidor la repite antes de generar el ID o escribir en `Reg
 
 Cuando se requiere ServiceNow, el formato es `TASK` seguido exactamente de siete dígitos.
 El botón «Introducir» (o Intro) confirma visualmente el código antes de habilitar el alta.
+Tras confirmar un código válido, la interfaz muestra el aviso: «Te recordamos que el procedimiento
+habitual es reclamarlo a través de ServiceNow. Prosiga solo con esta petición en caso de haberlo
+reclamado y no haya recibido respuesta.» Cerrar el aviso conserva el código confirmado.
 El cliente impide habilitar «Registrar solicitud» hasta confirmar un código válido; el servidor
 rechaza cualquier código no vacío que no cumpla el patrón, aunque la fila no lo exija, antes de
 generar el ID o escribir el registro.
