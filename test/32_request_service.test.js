@@ -196,6 +196,41 @@ describe('32_request_service - validateRequestPayload_', function () {
       .toEqual(['fotoUbicacion', 'fotoLayout']);
   });
 
+  test('exige enchufe y cuatro fotos válidas en Nueva solicitud de Locker', function () {
+    const element = { tipo_gestion: 'NUEVA_SOLICITUD', equipo: 'LOCKER', requiere_service_now: 'NO' };
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]).toString('base64');
+    const payload = {
+      tienda: '0001', comentarios: 'Instalación de locker.', enchufeDisponible: 'NO',
+      fotoHorario: { mimeType: 'image/png', base64: png },
+      fotoCobertura: { mimeType: 'image/png', base64: png },
+      fotoUbicacion: { mimeType: 'image/png', base64: png },
+      fotoLayout: { mimeType: 'image/png', base64: png }
+    };
+
+    expect(function () { validateRequestPayload_(element, Object.assign({}, payload)); }).not.toThrow();
+    expect(function () {
+      validateRequestPayload_(element, Object.assign({}, payload, { enchufeDisponible: 'PENDIENTE' }));
+    }).toThrow(/enchufe disponible/);
+    expect(function () {
+      validateRequestPayload_(element, Object.assign({}, payload, { fotoCobertura: null }));
+    }).toThrow(/Foto.*obligatorio/);
+  });
+
+  test('normaliza las cuatro fotos de Nueva solicitud de Locker como adjuntos temporales', function () {
+    const element = { tipo_gestion: 'NUEVA_SOLICITUD', equipo: 'LOCKER' };
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]).toString('base64');
+    const payload = {
+      fotoHorario: { mimeType: 'image/png', base64: png },
+      fotoCobertura: { mimeType: 'image/png', base64: png },
+      fotoUbicacion: { mimeType: 'image/png', base64: png },
+      fotoLayout: { mimeType: 'image/png', base64: png }
+    };
+
+    normalizeRequestPhoto_(element, payload);
+    expect(payload._photoAttachments.map(function (photo) { return photo.fieldName; }))
+      .toEqual(['fotoHorario', 'fotoCobertura', 'fotoUbicacion', 'fotoLayout']);
+  });
+
   test('normaliza líneas vacías, espacios repetidos y caracteres invisibles', function () {
     expect(normalizeCommentText_('  Primera   línea \r\n\r\n\tSegunda\u00a0  línea\u200b  '))
       .toBe('Primera línea\nSegunda línea');
@@ -428,6 +463,35 @@ describe('RequestService - submitRequest', function () {
     expect(result.message).toContain('enchufe_disponible');
     expect(sheets.Registros._getRawValues()).toHaveLength(1);
     expect(global.MailApp.sentEmails).toHaveLength(0);
+  });
+
+  test('registra enchufe y adjunta las cuatro fotos de Nueva solicitud de Locker', function () {
+    const sheets = buildFixtures('ACTIVO', 'ACTIVE');
+    sheets.Elementos._getRawValues()[1] = [
+      'LOCK-NUEVA', 'LOCKER', '', 'NUEVA_SOLICITUD', '', 'Nueva solicitud para tienda abierta',
+      'ACTIVE', 'NO', 'SI', '', 10
+    ];
+    global.Session.getActiveUser = function () {
+      return { getEmail: function () { return 'ana@diagroup.com'; } };
+    };
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+    const photo = { mimeType: 'image/png', base64: png.toString('base64') };
+
+    const result = submitRequest({
+      idElemento: 'LOCK-NUEVA', tienda: '0001', comentarios: 'Locker revisado.', enchufeDisponible: 'SI',
+      fotoHorario: photo, fotoCobertura: photo, fotoUbicacion: photo, fotoLayout: photo
+    });
+
+    expect(result.success).toBe(true);
+    expect(sheets.Registros._getRawValues()[1][21]).toBe('SI');
+    expect(sheets.Registros._getRawValues()[1][22]).toBe('');
+    expect(global.MailApp.sentEmails[0].attachments.map(function (attachment) { return attachment.getName(); }))
+      .toEqual([
+        'foto-horario-' + result.idPeticion + '.png',
+        'foto-cobertura-' + result.idPeticion + '.png',
+        'foto-ubicacion-' + result.idPeticion + '.png',
+        'foto-layout-' + result.idPeticion + '.png'
+      ]);
   });
 
   test('no genera ID ni graba un movimiento con la misma tienda de origen y destino', function () {

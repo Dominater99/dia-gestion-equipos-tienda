@@ -192,6 +192,7 @@ clave, valor
 | `EMAIL_CC_SOPORTE` | `dia.es.soporte.layouts@diagroup.com` | Copia de soporte configurable para confirmaciones. |
 | `NOMBRE_REMITENTE_EMAIL` | `Dia Layouts` | Nombre visible del remitente del correo. |
 | `ASUNTO_EMAIL` | `[Gestión equipos]-{{equipo}}-{{tipo_gestion}}- {{tienda}}-{{provincia}}-{{municipio}}-{{direccion}}` | Plantilla del asunto. Durante la transición se acepta `ASUNTO_EMAL` si no existe esta clave. |
+| `URL_APP_COBERTURA` | `www.dia.es` | Texto de ayuda que se muestra bajo Foto cobertura en Nueva solicitud de Locker. |
 | `LIMITE_REGISTROS_DIARIOS_USUARIO` | `10` | Máximo de registros guardados por usuario y día de `Europe/Madrid`; entero positivo ampliable. |
 | `LIMITE_INTENTOS_REGISTRO_VENTANA` | `10` | Máximo de intentos de alta por usuario en cada ventana. |
 | `VENTANA_INTENTOS_REGISTRO_SEGUNDOS` | `600` | Duración de la ventana de intentos de alta. |
@@ -272,7 +273,7 @@ registra el fallo de `google.script.run` en su propia consola.
 
 | Gestión | Campos obligatorios | Campos condicionales |
 |---|---|---|
-| `NUEVA_SOLICITUD` | tienda | en Cafetera: enchufe, toma de agua, foto de ubicación y foto de layout |
+| `NUEVA_SOLICITUD` | tienda | en Cafetera: enchufe, toma de agua, foto de ubicación y foto de layout; en Locker: enchufe, fotos de horario, cobertura, ubicación y layout |
 | `MOVIMIENTO` | tienda de origen y destino | fecha límite opcional para neveras |
 | `DESCONEXION_TEMPORAL` | tienda, fecha de inicio y fin | — |
 | `RETIRADA` | tienda | fecha máxima obligatoria para lockers |
@@ -305,8 +306,11 @@ hasta 10 MiB. La zona de carga admite selección, arrastre y pegado desde el por
 hay una foto seleccionada oculta esas opciones y muestra su nombre con una acción «×» para eliminarla.
 En `NUEVA_SOLICITUD` de Cafetera, después de validar la tienda se exigen dos controles en botones,
 no desplegables: «¿Enchufe disponible?» y «¿Toma de agua disponible?», ambos `SI` o `NO`, seguidos
-por Foto ubicación y Foto layout, también obligatorias. El navegador solo usa el tipo MIME como
-ayuda; el servidor repite el límite y comprueba la firma binaria de JPEG o PNG antes de registrar.
+por Foto ubicación y Foto layout, también obligatorias. En `NUEVA_SOLICITUD` de Locker se solicita
+«¿Enchufe disponible?» con los mismos botones, seguido de Foto horario, Foto cobertura, Foto
+ubicación y Foto layout. Foto cobertura muestra como ayuda el valor de `URL_APP_COBERTURA` de
+`Sistema`; si falta, se muestra `www.dia.es`. El navegador solo usa el tipo MIME como ayuda; el
+servidor repite el límite y comprueba la firma binaria de JPEG o PNG antes de registrar.
 
 «Registrar solicitud» permanece desactivado hasta que todos los campos requeridos sean válidos
 y las tiendas y el código ServiceNow se hayan confirmado.
@@ -395,7 +399,9 @@ cabecera DIA, estado de alta, tabla de datos y pie. La cabecera carga el logo of
 ni datos de otras solicitudes. Para `ERROR_PANTALLA` de Cafetera incorpora la foto validada como
 un adjunto binario, con nombre `foto-<id_peticion>.jpg` o `.png`. Para `NUEVA_SOLICITUD` de
 Cafetera adjunta Foto ubicación y Foto layout como `foto-ubicacion-<id_peticion>` y
-`foto-layout-<id_peticion>` con su extensión. No crea archivos de Drive ni incluye enlaces. Solo se
+`foto-layout-<id_peticion>` con su extensión. En `NUEVA_SOLICITUD` de Locker adjunta las fotos como
+`foto-horario-<id_peticion>`, `foto-cobertura-<id_peticion>`, `foto-ubicacion-<id_peticion>` y
+`foto-layout-<id_peticion>`, con su extensión. No crea archivos de Drive ni incluye enlaces. Solo se
 muestran campos con valor; el HTML escapa los datos y conserva los saltos
 de línea en Comentarios. El saludo, la frase principal y el cierre son textos fijos de la aplicación;
 incorporan el nombre del usuario y el identificador de la solicitud. El asunto y el cuerpo de la
@@ -508,8 +514,8 @@ producción ni se envían correos reales durante pruebas sin autorización.
 - `.clasp.json`, `*.gsheet`, credenciales e IDs no se versionan.
 - Los valores de hojas se tratan como configuración administrada, no como confianza del cliente.
 - No hay Drive, UrlFetch, Admin SDK ni servicios avanzados. Las fotos de `ERROR_PANTALLA` y de
-  `NUEVA_SOLICITUD` de Cafetera se conservan solo en memoria durante la ejecución y se adjuntan al
-  correo; no se persisten en Sheets, Logs,
+  `NUEVA_SOLICITUD` de Cafetera y Locker se conservan solo en memoria durante la ejecución y se
+  adjuntan al correo; no se persisten en Sheets, Logs,
   Properties, caché ni Drive.
 - No se ha verificado el comportamiento integrado de identidad, correo y permisos en un despliegue
   real durante esta regeneración.

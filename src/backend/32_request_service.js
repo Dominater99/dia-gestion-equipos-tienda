@@ -191,6 +191,7 @@ function normalizeRequestStores_(element, payload, visibleStores) {
     if (allowedDates.indexOf(fieldName) === -1) delete result[fieldName];
   });
   normalizeCafeteraNewRequestFields_(element, result);
+  normalizeLockerNewRequestFields_(element, result);
   normalizeRequestPhoto_(element, result);
   result._storeDetails = {};
   const storeFields = element.tipo_gestion === TIPOS_GESTION.MOVIMIENTO
@@ -273,6 +274,7 @@ function validateRequestPayload_(element, payload) {
 
   validateFutureDates_(payload);
   validateCafeteraNewRequestFields_(element, payload);
+  validateLockerNewRequestFields_(element, payload);
   validatePhotoPayloadMetadata_(element, payload);
 
   const codigo = String(payload.codigoServiceNow || '').trim();
@@ -301,12 +303,20 @@ function isCafeteraNewRequest_(element) {
     element.tipo_gestion === TIPOS_GESTION.NUEVA_SOLICITUD;
 }
 
+function isLockerNewRequest_(element) {
+  return element && element.equipo === EQUIPOS.LOCKER &&
+    element.tipo_gestion === TIPOS_GESTION.NUEVA_SOLICITUD;
+}
+
 function photoFieldNames_(element) {
   if (element && element.equipo === EQUIPOS.CAFETERA &&
       element.tipo_gestion === TIPOS_GESTION.ERROR_PANTALLA) {
     return ['foto'];
   }
-  return isCafeteraNewRequest_(element) ? ['fotoUbicacion', 'fotoLayout'] : [];
+  if (isCafeteraNewRequest_(element)) return ['fotoUbicacion', 'fotoLayout'];
+  return isLockerNewRequest_(element)
+    ? ['fotoHorario', 'fotoCobertura', 'fotoUbicacion', 'fotoLayout']
+    : [];
 }
 
 function requiresPhoto_(element) {
@@ -324,13 +334,28 @@ function validateCafeteraNewRequestFields_(element, payload) {
 }
 
 function normalizeCafeteraNewRequestFields_(element, payload) {
-  if (!isCafeteraNewRequest_(element)) {
-    delete payload.enchufeDisponible;
-    delete payload.tomaAguaDisponible;
+  if (isCafeteraNewRequest_(element)) {
+    payload.enchufeDisponible = String(payload.enchufeDisponible).trim().toUpperCase();
+    payload.tomaAguaDisponible = String(payload.tomaAguaDisponible).trim().toUpperCase();
     return;
   }
+  if (!isLockerNewRequest_(element)) {
+    delete payload.enchufeDisponible;
+    delete payload.tomaAguaDisponible;
+  }
+}
+
+function validateLockerNewRequestFields_(element, payload) {
+  if (!isLockerNewRequest_(element)) return;
+  if (!/^(SI|NO)$/.test(String(payload.enchufeDisponible || '').trim().toUpperCase())) {
+    throw publicError_(VALIDATION_MESSAGES.POWER_OUTLET);
+  }
+}
+
+function normalizeLockerNewRequestFields_(element, payload) {
+  if (!isLockerNewRequest_(element)) return;
   payload.enchufeDisponible = String(payload.enchufeDisponible).trim().toUpperCase();
-  payload.tomaAguaDisponible = String(payload.tomaAguaDisponible).trim().toUpperCase();
+  delete payload.tomaAguaDisponible;
 }
 
 function validatePhotoPayloadMetadata_(element, payload) {
@@ -360,7 +385,7 @@ function validateSinglePhotoPayloadMetadata_(photo) {
 function normalizeRequestPhoto_(element, payload) {
   const photoFields = photoFieldNames_(element);
   const sourcePhotos = {};
-  ['foto', 'fotoUbicacion', 'fotoLayout'].forEach(function (fieldName) {
+  ['foto', 'fotoHorario', 'fotoCobertura', 'fotoUbicacion', 'fotoLayout'].forEach(function (fieldName) {
     sourcePhotos[fieldName] = payload[fieldName];
     delete payload[fieldName];
   });
@@ -476,6 +501,9 @@ function registerRequest_(element, payload, currentUser, systemParams) {
     if (isCafeteraNewRequest_(element) &&
         (headers.indexOf('enchufe_disponible') < 0 || headers.indexOf('toma_agua_disponible') < 0)) {
       throw publicError_('Faltan las columnas enchufe_disponible y toma_agua_disponible en Registros.');
+    }
+    if (isLockerNewRequest_(element) && headers.indexOf('enchufe_disponible') < 0) {
+      throw publicError_('Falta la columna enchufe_disponible en Registros.');
     }
 
     const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
@@ -613,10 +641,13 @@ if (typeof module !== 'undefined') {
     normalizeCommentText_,
     normalizeRequestStores_,
     isCafeteraNewRequest_,
+    isLockerNewRequest_,
     photoFieldNames_,
     requiresPhoto_,
     validateCafeteraNewRequestFields_,
     normalizeCafeteraNewRequestFields_,
+    validateLockerNewRequestFields_,
+    normalizeLockerNewRequestFields_,
     validatePhotoPayloadMetadata_,
     validateSinglePhotoPayloadMetadata_,
     normalizeRequestPhoto_,

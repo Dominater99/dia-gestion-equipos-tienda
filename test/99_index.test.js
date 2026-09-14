@@ -113,6 +113,11 @@ describe('99_index - contrato visual y accesible', function () {
     expect(html).toContain("management === 'NUEVA_SOLICITUD'");
     expect(html).toContain("field('enchufeDisponible', '¿Enchufe disponible?', 'yes-no', true)");
     expect(html).toContain("field('tomaAguaDisponible', '¿Toma de agua disponible?', 'yes-no', true)");
+    expect(html).toContain("element.equipo === 'LOCKER'");
+    expect(html).toContain("field('fotoHorario', 'Foto horario', 'photo', true");
+    expect(html).toContain("field('fotoCobertura', 'Foto cobertura', 'photo', true");
+    expect(html).toContain("'Consulta la cobertura en ' + coverageAppUrl");
+    expect(html).toContain("const coverageAppUrl = appState.uiText.coverageAppUrl || 'www.dia.es';");
     expect(html).toContain("field('fotoUbicacion', 'Foto ubicación', 'photo', true");
     expect(html).toContain("field('fotoLayout', 'Foto layout', 'photo', true");
     expect(html).toContain("['SI', 'NO'].forEach(function (choice)");

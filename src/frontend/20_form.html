@@ -15,6 +15,19 @@
             field('fotoLayout', 'Foto layout', 'photo', true,
               'Adjunta una imagen JPEG, JPG o PNG de hasta ' + FORM_RULES.photoMaxSizeDisplay + ' MiB.')
           );
+        } else if (element.equipo === 'LOCKER') {
+          const coverageAppUrl = appState.uiText.coverageAppUrl || 'www.dia.es';
+          fields.push(
+            field('enchufeDisponible', '¿Enchufe disponible?', 'yes-no', true),
+            field('fotoHorario', 'Foto horario', 'photo', true,
+              'Adjunta una imagen JPEG, JPG o PNG de hasta ' + FORM_RULES.photoMaxSizeDisplay + ' MiB.'),
+            field('fotoCobertura', 'Foto cobertura', 'photo', true,
+              'Consulta la cobertura en ' + coverageAppUrl + ' antes de adjuntar la foto.'),
+            field('fotoUbicacion', 'Foto ubicación', 'photo', true,
+              'Adjunta una imagen JPEG, JPG o PNG de hasta ' + FORM_RULES.photoMaxSizeDisplay + ' MiB.'),
+            field('fotoLayout', 'Foto layout', 'photo', true,
+              'Adjunta una imagen JPEG, JPG o PNG de hasta ' + FORM_RULES.photoMaxSizeDisplay + ' MiB.')
+          );
         }
       } else if (management === 'MOVIMIENTO') {
         fields = [

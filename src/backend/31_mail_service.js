@@ -75,8 +75,10 @@ function buildPhotoAttachments_(idPeticion, payload) {
   if (!photos || !photos.length) return [];
   return photos.map(function (photo) {
     const extension = photo.mimeType === 'image/png' ? 'png' : 'jpg';
-    const suffix = photo.fieldName === 'fotoUbicacion' ? '-ubicacion' :
-      photo.fieldName === 'fotoLayout' ? '-layout' : '';
+    const suffix = photo.fieldName === 'fotoHorario' ? '-horario' :
+      photo.fieldName === 'fotoCobertura' ? '-cobertura' :
+        photo.fieldName === 'fotoUbicacion' ? '-ubicacion' :
+          photo.fieldName === 'fotoLayout' ? '-layout' : '';
     return Utilities.newBlob(photo.bytes, photo.mimeType, 'foto' + suffix + '-' + idPeticion + '.' + extension);
   });
 }
@@ -150,6 +152,8 @@ function confirmationFields_(element, payload) {
     [MAIL_FIELD_LABELS.POWER_OUTLET, payload.enchufeDisponible],
     [MAIL_FIELD_LABELS.WATER_OUTLET, payload.tomaAguaDisponible],
     [MAIL_FIELD_LABELS.PHOTO, payload._photoAttachment ? 'Adjunta al correo' : ''],
+    [MAIL_FIELD_LABELS.SCHEDULE_PHOTO, hasPhotoAttachment_(payload, 'fotoHorario') ? 'Adjunta al correo' : ''],
+    [MAIL_FIELD_LABELS.COVERAGE_PHOTO, hasPhotoAttachment_(payload, 'fotoCobertura') ? 'Adjunta al correo' : ''],
     [MAIL_FIELD_LABELS.LOCATION_PHOTO, hasPhotoAttachment_(payload, 'fotoUbicacion') ? 'Adjunta al correo' : ''],
     [MAIL_FIELD_LABELS.LAYOUT_PHOTO, hasPhotoAttachment_(payload, 'fotoLayout') ? 'Adjunta al correo' : ''],
     [MAIL_FIELD_LABELS.COMMENTS, payload.comentarios]

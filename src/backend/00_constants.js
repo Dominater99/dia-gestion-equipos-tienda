@@ -170,12 +170,15 @@ const MAIL_FIELD_LABELS = Object.freeze({
   PHOTO: 'Foto: ',
   LOCATION_PHOTO: 'Foto ubicación: ',
   LAYOUT_PHOTO: 'Foto layout: ',
+  SCHEDULE_PHOTO: 'Foto horario: ',
+  COVERAGE_PHOTO: 'Foto cobertura: ',
   POWER_OUTLET: 'Enchufe disponible: ',
   WATER_OUTLET: 'Toma de agua disponible: ',
   COMMENTS: 'Comentarios: '
 });
 const UI_TEXT_DEFAULTS = Object.freeze({
   COMMENTS_HINT: 'Por favor, redacta correctamente el contenido, ya que se enviará directamente al proveedor.',
+  COVERAGE_APP_URL: 'www.dia.es',
   SUBMISSION_TRANSPORT_FAILURE: 'No se pudo confirmar si la solicitud se registró. Comprueba si recibes el correo de confirmación antes de volver a intentarlo.'
 });
 
@@ -189,6 +192,7 @@ const SYSTEM_PARAM_KEYS = {
   MAIL_SENDER_NAME: 'NOMBRE_REMITENTE_EMAIL',
   MAIL_SUBJECT: 'ASUNTO_EMAIL',
   LEGACY_MAIL_SUBJECT: 'ASUNTO_EMAL',
+  COVERAGE_APP_URL: 'URL_APP_COBERTURA',
   DAILY_USER_REQUEST_LIMIT: 'LIMITE_REGISTROS_DIARIOS_USUARIO',
   SUBMISSION_ATTEMPTS_LIMIT: 'LIMITE_INTENTOS_REGISTRO_VENTANA',
   SUBMISSION_WINDOW_SECONDS: 'VENTANA_INTENTOS_REGISTRO_SEGUNDOS',

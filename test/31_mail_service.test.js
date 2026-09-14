@@ -94,6 +94,35 @@ describe('31_mail_service', function () {
     expect(sent.body).toContain('Foto layout: Adjunta al correo');
   });
 
+  test('incluye enchufe y las cuatro fotos adjuntas de Nueva solicitud de Locker', function () {
+    sendConfirmationEmail_(
+      { email: 'ana@diagroup.com', nombre: 'Ana' },
+      'SOL-20260910-0001',
+      Object.assign({}, element, { equipo: 'LOCKER', tipo_gestion: 'NUEVA_SOLICITUD', etiqueta: 'Nueva solicitud para tienda abierta' }),
+      {
+        tienda: '0001', enchufeDisponible: 'NO',
+        _photoAttachments: [
+          { fieldName: 'fotoHorario', bytes: [0xff, 0xd8, 0xff, 0x00], mimeType: 'image/jpeg' },
+          { fieldName: 'fotoCobertura', bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], mimeType: 'image/png' },
+          { fieldName: 'fotoUbicacion', bytes: [0xff, 0xd8, 0xff, 0x00], mimeType: 'image/jpeg' },
+          { fieldName: 'fotoLayout', bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], mimeType: 'image/png' }
+        ]
+      }
+    );
+
+    const sent = global.MailApp.sentEmails[0];
+    expect(sent.attachments.map(function (attachment) { return attachment.getName(); }))
+      .toEqual([
+        'foto-horario-SOL-20260910-0001.jpg',
+        'foto-cobertura-SOL-20260910-0001.png',
+        'foto-ubicacion-SOL-20260910-0001.jpg',
+        'foto-layout-SOL-20260910-0001.png'
+      ]);
+    expect(sent.body).toContain('Enchufe disponible: NO');
+    expect(sent.body).toContain('Foto horario: Adjunta al correo');
+    expect(sent.body).toContain('Foto cobertura: Adjunta al correo');
+  });
+
   test('usa el nombre de remitente configurado en Sistema', function () {
     resetMockSheets({
       Sistema: [

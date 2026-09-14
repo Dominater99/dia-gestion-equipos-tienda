@@ -92,7 +92,17 @@ describe('30_auth_service', function () {
     expect(result.elements).toHaveLength(1);
     expect(result.elements[0].id_elemento).toBe('CAF-RETIRADA');
     expect(result.uiText.commentsHint).toBe(UI_TEXT_DEFAULTS.COMMENTS_HINT);
+    expect(result.uiText.coverageAppUrl).toBe(UI_TEXT_DEFAULTS.COVERAGE_APP_URL);
     expect(result.uiText.submissionTransportFailure).toBe(UI_TEXT_DEFAULTS.SUBMISSION_TRANSPORT_FAILURE);
+  });
+
+  test('checkAccess entrega URL_APP_COBERTURA desde Sistema para Foto cobertura', function () {
+    getSheet_(SHEET_NAMES.SISTEMA).appendRow(['URL_APP_COBERTURA', 'https://cobertura.interna.dia.es']);
+    global.Session.getActiveUser = function () {
+      return { getEmail: function () { return 'ana@diagroup.com'; } };
+    };
+
+    expect(checkAccess().uiText.coverageAppUrl).toBe('https://cobertura.interna.dia.es');
   });
 
   test('los textos de interfaz son fijos e ignoran filas heredadas de Sistema', function () {
@@ -105,6 +115,7 @@ describe('30_auth_service', function () {
     };
     const uiText = checkAccess().uiText;
     expect(uiText.commentsHint).toBe(UI_TEXT_DEFAULTS.COMMENTS_HINT);
+    expect(uiText.coverageAppUrl).toBe(UI_TEXT_DEFAULTS.COVERAGE_APP_URL);
     expect(uiText.submissionTransportFailure).toBe(UI_TEXT_DEFAULTS.SUBMISSION_TRANSPORT_FAILURE);
   });
 

@@ -52,6 +52,9 @@ function checkAccess() {
     },
     uiText: {
       commentsHint: UI_TEXT_DEFAULTS.COMMENTS_HINT,
+      coverageAppUrl: textSystemParam_(
+        systemParams, SYSTEM_PARAM_KEYS.COVERAGE_APP_URL, UI_TEXT_DEFAULTS.COVERAGE_APP_URL
+      ),
       submissionTransportFailure: UI_TEXT_DEFAULTS.SUBMISSION_TRANSPORT_FAILURE
     },
     elements: getActiveElements_(cacheConfig)
