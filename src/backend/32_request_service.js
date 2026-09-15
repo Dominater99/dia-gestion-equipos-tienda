@@ -51,6 +51,7 @@ function submitRequest(payload) {
 
     stage = 'VALIDACION';
     validateRequestPayload_(element, payload);
+    getElementEmailMessage_(element);
     const normalizedPayload = normalizeRequestStores_(element, payload, getStoresForUser_(currentUser, cacheConfig));
 
     stage = 'REGISTROS';

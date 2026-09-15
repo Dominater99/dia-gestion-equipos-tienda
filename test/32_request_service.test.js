@@ -552,6 +552,24 @@ describe('RequestService - submitRequest', function () {
     expect(PropertiesService.getScriptProperties().getProperty('ULTIMO_ID_PETICION')).toBeNull();
   });
 
+  test('rechaza la solicitud sin mensaje_email antes de registrar o enviar correo', function () {
+    const sheets = buildFixtures('ACTIVO', 'ACTIVE');
+    sheets.Elementos._getRawValues()[1][10] = '';
+    global.Session.getActiveUser = function () {
+      return { getEmail: function () { return 'ana@diagroup.com'; } };
+    };
+
+    const result = submitRequest({
+      idElemento: 'CAF-RETIRADA', tienda: '0001', comentarios: 'Retirada solicitada.'
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('mensaje_email');
+    expect(sheets.Registros._getRawValues()).toHaveLength(1);
+    expect(global.MailApp.sentEmails).toHaveLength(0);
+    expect(PropertiesService.getScriptProperties().getProperty('ULTIMO_ID_PETICION')).toBeNull();
+  });
+
   test('persiste y envía los comentarios normalizados', function () {
     const sheets = buildFixtures('ACTIVO', 'ACTIVE');
     global.Session.getActiveUser = function () {
