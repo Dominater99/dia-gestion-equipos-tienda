@@ -64,11 +64,11 @@ function main() {
     return;
   }
 
-  const activeDeployment = parseActiveDeployment(invoke(claspProgram, ['deployments'], true));
+  const activeDeployment = parseActiveDeployment(invoke(process.execPath, [claspProgram, 'deployments'], true));
   console.log('Creando una versión de Apps Script...');
-  const version = parseVersion(invoke(claspProgram, ['version', description], true));
+  const version = parseVersion(invoke(process.execPath, [claspProgram, 'version', description], true));
   console.log('Actualizando la implementación ' + activeDeployment.id + ' a la versión ' + version + '...');
-  invoke(claspProgram, ['deploy', '-i', activeDeployment.id, '-V', String(version), '-d', description], false);
+  invoke(process.execPath, [claspProgram, 'deploy', '-i', activeDeployment.id, '-V', String(version), '-d', description], false);
   console.log('Implementación actualizada a la versión ' + version + '.');
 }
 

@@ -53,6 +53,7 @@ function submitRequest(payload) {
     validateRequestPayload_(element, payload);
     getElementEmailMessage_(element);
     const normalizedPayload = normalizeRequestStores_(element, payload, getStoresForUser_(currentUser, cacheConfig));
+    getElementEmailMessage_(element, normalizedPayload);
 
     stage = 'REGISTROS';
     idPeticion = registerRequest_(element, normalizedPayload, currentUser, systemParams);

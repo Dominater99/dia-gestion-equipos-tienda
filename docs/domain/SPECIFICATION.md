@@ -399,8 +399,10 @@ contiene origen y destino. Los marcadores no admitidos provocan fallo de notific
 deshacer una solicitud ya guardada. Se eliminan saltos de línea del asunto.
 
 El correo de confirmación usa `mensaje_email` de la fila seleccionada como cuerpo literal, tanto
-en `body` de texto plano como en `htmlBody`. El HTML conserva los saltos de línea y escapa el texto
-para impedir que una celda ejecute etiquetas. La tarjeta conserva la cabecera DIA y el estado de alta,
+en `body` de texto plano como en `htmlBody`. Admite `{equipo}` o `{{equipo}}`, `subtipo`,
+`tienda_id` y `comentarios` con cualquiera de ambos tipos de llaves; una variable desconocida o mal
+formada rechaza la solicitud. El HTML conserva los saltos de línea y escapa el texto para impedir que
+una celda ejecute etiquetas. La tarjeta conserva la cabecera DIA y el estado de alta,
 con el logo oficial desde `https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg`. No incluye el botón «Abrir la aplicación», enlaces, otros recursos remotos
 ni datos de otras solicitudes. Si `mensaje_email` está vacío, la solicitud se rechaza antes de generar
 ID, escribir en `Registros` o enviar una notificación. Para `ERROR_PANTALLA` de Cafetera incorpora la foto validada como

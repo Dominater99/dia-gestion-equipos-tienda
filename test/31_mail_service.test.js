@@ -21,6 +21,26 @@ describe('31_mail_service', function () {
     expect(body).not.toContain('Tienda:');
   });
 
+  test('sustituye variables simples y dobles de mensaje_email con datos del servidor', function () {
+    const body = buildConfirmationEmailBody_(Object.assign({}, element, {
+      equipo: 'CAFETERA',
+      subtipo: 'Error en pantalla',
+      mensaje_email: 'Equipo: {equipo}\nMotivo: {{subtipo}}\nTienda: {{tienda_id}}\nComentarios: {{comentarios}}'
+    }), {
+      tienda: '0001 - Dia Centro',
+      comentarios: 'La pantalla no enciende.',
+      _storeDetails: { tienda: { tienda_id: '0001' } }
+    });
+
+    expect(body).toBe('Equipo: CAFETERA\nMotivo: Error en pantalla\nTienda: 0001\nComentarios: La pantalla no enciende.');
+  });
+
+  test('rechaza una variable de mensaje_email no admitida', function () {
+    expect(function () {
+      buildConfirmationEmailBody_(Object.assign({}, element, { mensaje_email: 'Hola {{destinatario}}' }), {});
+    }).toThrow(/variable no admitida/i);
+  });
+
   test('sendConfirmationEmail_ usa el CC por defecto si Sistema no define EMAIL_CC_SOPORTE y el elemento no tiene email_destino', function () {
     sendConfirmationEmail_(
       { email: 'ana@diagroup.com', nombre: 'Ana' },

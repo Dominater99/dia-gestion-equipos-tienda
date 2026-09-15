@@ -51,8 +51,8 @@ function sendConfirmationEmail_(currentUser, idPeticion, element, payload, syste
     element,
     payload
   );
-  const body = buildConfirmationEmailBody_(element);
-  const htmlBody = buildConfirmationEmailHtml_(element);
+  const body = buildConfirmationEmailBody_(element, payload);
+  const htmlBody = buildConfirmationEmailHtml_(element, payload);
 
   const options = {
     to: normalizeSingleEmail_(currentUser.email, 'email del usuario'),
@@ -151,17 +151,40 @@ function buildConfirmationSubject_(template, element, payload) {
   return subject.replace(/[\r\n\u0000-\u001F\u007F]+/g, ' ').replace(/ {2,}/g, ' ').trim();
 }
 
-/** Devuelve el cuerpo configurado para el elemento seleccionado. */
-function getElementEmailMessage_(element) {
+/**
+ * Devuelve el cuerpo configurado para el elemento y sustituye sus marcadores
+ * con valores resueltos en servidor. Se aceptan llaves simples y dobles.
+ */
+function getElementEmailMessage_(element, payload) {
   const message = String(element && element.mensaje_email || '').trim();
   if (!message) {
     throw publicError_('Revisa mensaje_email de Elementos: debe contener el cuerpo del correo.');
   }
-  return message;
+  if (!payload) return message;
+
+  const details = payload._storeDetails || {};
+  const store = details.tienda || details.tiendaOrigen || {};
+  const values = {
+    equipo: String(element.equipo || ''),
+    subtipo: String(element.subtipo || ''),
+    tienda_id: String(store.tienda_id || payload.tienda || ''),
+    comentarios: String(payload.comentarios || '')
+  };
+  const rendered = message.replace(/\{\{([a-z_]+)\}\}|\{([a-z_]+)\}/gi, function (marker, doubleKey, singleKey) {
+    const key = String(doubleKey || singleKey).toLowerCase();
+    if (!Object.prototype.hasOwnProperty.call(values, key)) {
+      throw publicError_('Revisa mensaje_email de Elementos: variable no admitida ' + marker + '.');
+    }
+    return values[key];
+  });
+  if (/[{}]/.test(rendered)) {
+    throw publicError_('Revisa mensaje_email de Elementos: hay una variable con formato inválido.');
+  }
+  return rendered;
 }
 
-function buildConfirmationEmailBody_(element) {
-  return getElementEmailMessage_(element);
+function buildConfirmationEmailBody_(element, payload) {
+  return getElementEmailMessage_(element, payload);
 }
 
 function escapeMailHtml_(value) {
@@ -178,8 +201,8 @@ function mailHtmlText_(value) {
 }
 
 /** Tarjeta HTML que muestra, con saltos de línea seguros, el mensaje del elemento. */
-function buildConfirmationEmailHtml_(element) {
-  const message = getElementEmailMessage_(element);
+function buildConfirmationEmailHtml_(element, payload) {
+  const message = getElementEmailMessage_(element, payload);
   return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head>' +
     '<body style="margin:0;padding:0;background:' + MAIL_HTML_THEME.background +
     ';color:' + MAIL_HTML_THEME.text + ';font-family:' + MAIL_HTML_THEME.fontFamily + ';">' +
