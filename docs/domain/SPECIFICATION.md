@@ -482,6 +482,7 @@ Preparación local:
 ```text
 npm install
 npm run check
+npm run deploy -- "Descripción del cambio"
 ```
 
 `npm run check` ejecuta Jest en serie. `npm run test:coverage` genera cobertura. La suite usa
@@ -503,8 +504,8 @@ Publicación:
 
 1. instalar dependencias con `npm install` y ejecutar `npm run push -- --dry-run`;
 2. confirmar cuenta, `.clasp.json`, manifiesto, hoja vinculada y archivos de `git status`;
-3. ejecutar `npm run push`, que repite ESLint/tests, crea el commit, hace `git push` y envía fuentes con clasp;
-4. crear una versión y actualizar manualmente el despliegue;
+3. ejecutar `npm run deploy -- "Descripción del cambio"`, que repite ESLint/tests, crea el commit, hace `git push`, envía fuentes con clasp, crea una versión y actualiza la única implementación versionada;
+4. usar `npm run deploy -- --dry-run` para validar sin publicar; si `clasp` no usa una cuenta del dominio propietario, Apps Script rechaza la actualización de la implementación;
 5. probar acceso denegado, cada rol, filtros de tienda, una gestión representativa por equipo,
    persistencia y destinatarios.
 
