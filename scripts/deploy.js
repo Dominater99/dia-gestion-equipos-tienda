@@ -5,9 +5,7 @@ const { spawnSync } = require('child_process');
 
 const projectRoot = path.resolve(__dirname, '..');
 const npmCli = process.env.npm_execpath;
-const claspProgram = process.platform === 'win32'
-  ? path.join(projectRoot, 'node_modules', '.bin', 'clasp.cmd')
-  : path.join(projectRoot, 'node_modules', '.bin', 'clasp');
+const claspProgram = path.join(projectRoot, 'node_modules', '@google', 'clasp', 'build', 'src', 'index.js');
 
 function invoke(program, args, capture) {
   const result = spawnSync(program, args, {
