@@ -232,6 +232,27 @@ describe('31_mail_service', function () {
     expect(global.MailApp.sentEmails[0].cc).toBe('soporte@diagroup.com,cafeteras@diagroup.com');
   });
 
+  test('admite varias direcciones de soporte separadas por comas y elimina duplicados', function () {
+    resetMockSheets({
+      Sistema: [['clave', 'valor'], ['EMAIL_CC_SOPORTE',
+        'soporte@diagroup.com, Cafeteras@diagroup.com, SOPORTE@diagroup.com']]
+    });
+
+    sendConfirmationEmail_(
+      { email: 'ana@diagroup.com', nombre: 'Ana' }, 'SOL-20260910-0001',
+      Object.assign({}, element, { email_destino: 'cafeteras@diagroup.com' }), { tienda: '0001' }
+    );
+
+    expect(global.MailApp.sentEmails[0].cc).toBe('soporte@diagroup.com,Cafeteras@diagroup.com');
+  });
+
+  test('rechaza una lista de soporte con separadores o direcciones vacías no admitidos', function () {
+    ['uno@diagroup.com;', 'uno@diagroup.com,,dos@diagroup.com', 'uno@diagroup.com\r\nBcc:otro@ejemplo.com']
+      .forEach(function (value) {
+        expect(function () { normalizeSupportCcEmails_(value); }).toThrow(/EMAIL_CC_SOPORTE/);
+      });
+  });
+
   test('rechaza una celda de CC con varios destinatarios o saltos de línea', function () {
     ['uno@diagroup.com,dos@diagroup.com', 'uno@diagroup.com\r\nBcc:otro@ejemplo.com'].forEach(function (value) {
       expect(function () { normalizeSingleEmail_(value); }).toThrow(/dirección válida/);

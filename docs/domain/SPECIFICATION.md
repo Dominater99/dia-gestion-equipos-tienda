@@ -190,7 +190,7 @@ clave, valor
 | `CACHE_TTL_CORTO_SEGUNDOS` | `5` | TTL de Usuarios, Elementos y Sistema. |
 | `CACHE_TTL_LARGO_SEGUNDOS` | `100` | TTL de Tiendas. |
 | `EMAIL_ADMIN` | Correo definido manualmente | Destinatario del enlace para solicitar acceso. |
-| `EMAIL_CC_SOPORTE` | `dia.es.soporte.layouts@diagroup.com` | Copia de soporte configurable para confirmaciones. |
+| `EMAIL_CC_SOPORTE` | `dia.es.soporte.layouts@diagroup.com` | Copias de soporte para confirmaciones; admite direcciones separadas por comas. |
 | `NOMBRE_REMITENTE_EMAIL` | `Dia Layouts` | Nombre visible del remitente del correo. |
 | `ASUNTO_EMAIL` | `[Gestión equipos]-{{equipo}}-{{tipo_gestion}}- {{tienda}}-{{provincia}}-{{municipio}}-{{direccion}}` | Plantilla del asunto. Durante la transición se acepta `ASUNTO_EMAL` si no existe esta clave. |
 | `URL_APP_COBERTURA` | `www.dia.es` | Texto de ayuda que se muestra bajo Foto cobertura en Nueva solicitud de Locker. |
@@ -380,9 +380,10 @@ El destinatario principal es el email autenticado. Las copias son:
 1. `EMAIL_CC_SOPORTE`, o su valor predeterminado;
 2. `email_destino` del elemento, cuando exista.
 
-Cada celda debe contener una sola dirección sintácticamente válida; se rechazan listas,
-separadores y saltos de línea, y se elimina una CC repetida. Una configuración inválida provoca
-fallo de notificación, sin deshacer el registro ya guardado.
+`EMAIL_CC_SOPORTE` admite una o varias direcciones sintácticamente válidas separadas por comas;
+se rechazan elementos vacíos, punto y coma y saltos de línea. `email_destino` debe contener una sola
+dirección válida. Las direcciones repetidas se eliminan sin distinguir mayúsculas de minúsculas. Una
+configuración inválida provoca fallo de notificación, sin deshacer el registro ya guardado.
 
 El nombre visible del remitente procede de `NOMBRE_REMITENTE_EMAIL`, con valor predeterminado
 `Dia Layouts`. El asunto procede de `ASUNTO_EMAIL`; la clave heredada `ASUNTO_EMAL` se usa solo
