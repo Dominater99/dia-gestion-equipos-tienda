@@ -143,7 +143,7 @@ Cabeceras:
 
 ```text
 id_elemento, equipo, proveedor, tipo_gestion, subtipo, etiqueta, estado,
-requiere_service_now, solo_tiendas_abiertas, email_destino, orden
+requiere_service_now, solo_tiendas_abiertas, email_destino, mensaje_email, orden
 ```
 
 Contratos:
@@ -154,6 +154,7 @@ Contratos:
 - `requiere_service_now` y `solo_tiendas_abiertas`: `SI` o `NO`;
 - `orden` controla el orden ascendente del menú;
 - `email_destino` añade una copia al correo cuando tiene valor;
+- `mensaje_email` es obligatorio y contiene el cuerpo literal del correo de registro para esa opción;
 - `proveedor` y `subtipo` pueden quedar vacíos.
 
 Tipos de gestión cerrados:
@@ -396,10 +397,12 @@ Los marcadores admitidos son `id_elemento`, `equipo`, `tipo_gestion`, `tienda`, 
 contiene origen y destino. Los marcadores no admitidos provocan fallo de notificación, sin
 deshacer una solicitud ya guardada. Se eliminan saltos de línea del asunto.
 
-El correo de confirmación contiene `body` de texto plano y `htmlBody` con tarjeta centrada,
-cabecera DIA, estado de alta, tabla de datos y pie. La cabecera carga el logo oficial desde
-`https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg`. No incluye el botón «Abrir la aplicación», enlaces, otros recursos remotos
-ni datos de otras solicitudes. Para `ERROR_PANTALLA` de Cafetera incorpora la foto validada como
+El correo de confirmación usa `mensaje_email` de la fila seleccionada como cuerpo literal, tanto
+en `body` de texto plano como en `htmlBody`. El HTML conserva los saltos de línea y escapa el texto
+para impedir que una celda ejecute etiquetas. La tarjeta conserva la cabecera DIA y el estado de alta,
+con el logo oficial desde `https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg`. No incluye el botón «Abrir la aplicación», enlaces, otros recursos remotos
+ni datos de otras solicitudes. Si `mensaje_email` está vacío, la solicitud se registra pero se informa
+que no se pudo enviar la notificación. Para `ERROR_PANTALLA` de Cafetera incorpora la foto validada como
 un adjunto binario, con nombre `foto-<id_peticion>.jpg` o `.png`. Para `NUEVA_SOLICITUD` de
 Cafetera adjunta Foto ubicación y Foto layout como `foto-ubicacion-<id_peticion>` y
 `foto-layout-<id_peticion>` con su extensión. En `NUEVA_SOLICITUD` de Locker adjunta las fotos como

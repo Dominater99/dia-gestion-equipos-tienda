@@ -6,26 +6,19 @@ describe('31_mail_service', function () {
     tipo_gestion: 'RETIRADA',
     subtipo: '',
     etiqueta: 'Retirada de cafetera sin destino',
-    email_destino: ''
+    email_destino: '',
+    mensaje_email: 'Hola Ana,\n\nTu solicitud ha sido registrada correctamente.'
   };
 
   beforeEach(function () {
     resetMockSheets({ Sistema: [['parametro', 'valor']] });
   });
 
-  test('buildConfirmationEmailBody_ omite los campos que no vienen en el payload', function () {
-    const body = buildConfirmationEmailBody_(
-      { nombre: 'Ana' },
-      'SOL-20260910-0001',
-      element,
-      { tienda: '0001 - Dia Centro' }
-    );
+  test('usa mensaje_email como cuerpo literal del correo', function () {
+    const body = buildConfirmationEmailBody_(element);
 
-    expect(body).toContain('SOL-20260910-0001');
-    expect(body).toContain('Tienda: 0001 - Dia Centro');
-    expect(body).toContain('Tipo de gestión: Retirada de cafetera sin destino');
-    expect(body).not.toContain('Proveedor:');
-    expect(body).not.toContain('Código ServiceNow:');
+    expect(body).toBe('Hola Ana,\n\nTu solicitud ha sido registrada correctamente.');
+    expect(body).not.toContain('Tienda:');
   });
 
   test('sendConfirmationEmail_ usa el CC por defecto si Sistema no define EMAIL_CC_SOPORTE y el elemento no tiene email_destino', function () {
@@ -41,8 +34,8 @@ describe('31_mail_service', function () {
     expect(sent.cc).toBe('dia.es.soporte.layouts@diagroup.com');
     expect(sent.name).toBe('Dia Layouts');
     expect(sent.htmlBody).toContain('SOLICITUD REGISTRADA');
-    expect(sent.htmlBody).toContain('DATOS DE LA SOLICITUD');
-    expect(sent.htmlBody).toContain('SOL-20260910-0001');
+    expect(sent.htmlBody).toContain('Hola Ana,');
+    expect(sent.htmlBody).toContain('Tu solicitud ha sido registrada correctamente.');
     expect(sent.htmlBody).toContain('<img src="' + BRAND_ASSETS.LOGO_URL + '"');
     expect(sent.htmlBody).toContain('width="56" height="31" alt="DIA"');
     expect(sent.htmlBody).not.toMatch(/<button\b|Abrir la aplicación|<a\b/i);
@@ -66,9 +59,7 @@ describe('31_mail_service', function () {
     expect(sent.attachments).toHaveLength(1);
     expect(sent.attachments[0].getContentType()).toBe('image/png');
     expect(sent.attachments[0].getName()).toBe('foto-SOL-20260910-0001.png');
-    expect(sent.body).toContain('Foto: Adjunta al correo');
-    expect(sent.htmlBody).toContain('>Foto</td>');
-    expect(sent.htmlBody).toContain('>Adjunta al correo</td>');
+    expect(sent.body).toBe(element.mensaje_email);
   });
 
   test('incluye las dos disponibilidades y los dos adjuntos de Nueva solicitud de Cafetera', function () {
@@ -88,10 +79,7 @@ describe('31_mail_service', function () {
     const sent = global.MailApp.sentEmails[0];
     expect(sent.attachments.map(function (attachment) { return attachment.getName(); }))
       .toEqual(['foto-ubicacion-SOL-20260910-0001.jpg', 'foto-layout-SOL-20260910-0001.png']);
-    expect(sent.body).toContain('Enchufe disponible: SI');
-    expect(sent.body).toContain('Toma de agua disponible: NO');
-    expect(sent.body).toContain('Foto ubicación: Adjunta al correo');
-    expect(sent.body).toContain('Foto layout: Adjunta al correo');
+    expect(sent.body).toBe(element.mensaje_email);
   });
 
   test('incluye enchufe y las cuatro fotos adjuntas de Nueva solicitud de Locker', function () {
@@ -118,9 +106,7 @@ describe('31_mail_service', function () {
         'foto-ubicacion-SOL-20260910-0001.jpg',
         'foto-layout-SOL-20260910-0001.png'
       ]);
-    expect(sent.body).toContain('Enchufe disponible: NO');
-    expect(sent.body).toContain('Foto horario: Adjunta al correo');
-    expect(sent.body).toContain('Foto cobertura: Adjunta al correo');
+    expect(sent.body).toBe(element.mensaje_email);
   });
 
   test('usa el nombre de remitente configurado en Sistema', function () {
@@ -141,7 +127,7 @@ describe('31_mail_service', function () {
     expect(global.MailApp.sentEmails[0].name).toBe('Equipo Layouts');
   });
 
-  test('usa los textos fijos e ignora filas heredadas de Sistema', function () {
+  test('usa mensaje_email e ignora las filas heredadas de Sistema', function () {
     resetMockSheets({
       Sistema: [
         ['clave', 'valor'],
@@ -155,25 +141,22 @@ describe('31_mail_service', function () {
       'SOL-20260910-0001', element, { tienda: '0001' }
     );
     const body = global.MailApp.sentEmails[0].body;
-    expect(body).toContain('Hola Ana,');
-    expect(body).toContain('Tu solicitud ha quedado registrada con el identificador SOL-20260910-0001.');
-    expect(body).toContain(MAIL_DEFAULTS.CONFIRMATION_FOOTER);
+    expect(body).toBe(element.mensaje_email);
     expect(body).not.toContain('Texto heredado');
-    expect(global.MailApp.sentEmails[0].htmlBody).toContain('Hola Ana,');
-    expect(global.MailApp.sentEmails[0].htmlBody).toContain(MAIL_DEFAULTS.CONFIRMATION_FOOTER);
   });
 
-  test('el HTML escapa datos del formulario y conserva los saltos de línea sin ejecutar etiquetas', function () {
-    const html = buildConfirmationEmailHtml_(
-      { nombre: 'Ana <Prueba>' }, 'SOL-20260910-0001', element,
-      { tienda: '0001 & Centro', comentarios: '<img src=x onerror=alert(1)>\nSegunda línea' }
-    );
+  test('el HTML escapa mensaje_email y conserva sus saltos de línea', function () {
+    const html = buildConfirmationEmailHtml_(Object.assign({}, element, {
+      mensaje_email: 'Hola <Prueba>\nSegunda línea'
+    }));
 
-    expect(html).toContain('Ana &lt;Prueba&gt;');
-    expect(html).toContain('0001 &amp; Centro');
-    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;<br>Segunda línea');
-    expect(html).not.toContain('<img src=x onerror=alert(1)>');
+    expect(html).toContain('Hola &lt;Prueba&gt;<br>Segunda línea');
+    expect(html).not.toContain('Hola <Prueba>');
     expect(html).not.toContain('Abrir la aplicación');
+  });
+
+  test('rechaza un elemento sin mensaje_email', function () {
+    expect(function () { getElementEmailMessage_({}); }).toThrow(/mensaje_email/i);
   });
 
   test('usa el asunto configurable y los datos de tienda verificados en servidor', function () {

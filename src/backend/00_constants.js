@@ -158,28 +158,6 @@ const MAIL_DEFAULTS = Object.freeze({
   ACCESS_REQUEST_BODY: 'Hola,\n\nSolicito acceso a la aplicación ' + APP_METADATA.NAME +
     ' con mi cuenta {{email}}.\n\nGracias.'
 });
-const MAIL_FIELD_LABELS = Object.freeze({
-  EQUIPMENT: 'Equipo: ',
-  PROVIDER: 'Proveedor: ',
-  MANAGEMENT: 'Tipo de gestión: ',
-  DETAIL: 'Detalle: ',
-  STORE: 'Tienda: ',
-  ORIGIN_STORE: 'Tienda origen: ',
-  DESTINATION_STORE: 'Tienda destino: ',
-  COLLECTION_DEADLINE: 'Fecha límite de recogida: ',
-  START_DATE: 'Fecha de inicio: ',
-  END_DATE: 'Fecha de fin: ',
-  WITHDRAWAL_DEADLINE: 'Fecha máxima de retirada: ',
-  SERVICE_NOW: 'Código ServiceNow: ',
-  PHOTO: 'Foto: ',
-  LOCATION_PHOTO: 'Foto ubicación: ',
-  LAYOUT_PHOTO: 'Foto layout: ',
-  SCHEDULE_PHOTO: 'Foto horario: ',
-  COVERAGE_PHOTO: 'Foto cobertura: ',
-  POWER_OUTLET: 'Enchufe disponible: ',
-  WATER_OUTLET: 'Toma de agua disponible: ',
-  COMMENTS: 'Comentarios: '
-});
 const UI_TEXT_DEFAULTS = Object.freeze({
   COMMENTS_HINT: 'Por favor, redacta correctamente el contenido, ya que se enviará directamente al proveedor.',
   COVERAGE_APP_URL: 'www.dia.es',
@@ -276,7 +254,6 @@ if (typeof module !== 'undefined') {
     VALIDATION_MESSAGES,
     DAILY_REQUEST_LIMIT_DEFAULT,
     MAIL_DEFAULTS,
-    MAIL_FIELD_LABELS,
     UI_TEXT_DEFAULTS,
     SYSTEM_PARAM_KEYS,
     SCRIPT_PROPERTY_KEYS,

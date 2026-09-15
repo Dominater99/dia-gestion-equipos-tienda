@@ -7,8 +7,8 @@ describe('21_element_service', function () {
         ['CACHE_TTL_CORTO_SEGUNDOS', 5]
       ],
       Elementos: [
-        ['id_elemento', 'equipo', 'proveedor', 'tipo_gestion', 'subtipo', 'etiqueta', 'estado', 'requiere_service_now', 'solo_tiendas_abiertas', 'email_destino', 'orden'],
-        ['CAF-NUEVA', 'CAFETERA', '', 'NUEVA_SOLICITUD', '', 'Nueva solicitud para tienda abierta', 'ACTIVE', 'NO', 'SI', '', 10],
+        ['id_elemento', 'equipo', 'proveedor', 'tipo_gestion', 'subtipo', 'etiqueta', 'estado', 'requiere_service_now', 'solo_tiendas_abiertas', 'email_destino', 'mensaje_email', 'orden'],
+        ['CAF-NUEVA', 'CAFETERA', '', 'NUEVA_SOLICITUD', '', 'Nueva solicitud para tienda abierta', 'ACTIVE', 'NO', 'SI', '', 'Mensaje Cafetera', 10],
         ['CAF-MOV', 'CAFETERA', '', 'MOVIMIENTO', '', 'Movimiento entre tiendas', 'INACTIVE', 'NO', 'NO', '', 20],
         ['NEV-REDBULL-NUEVA', 'NEVERA', 'RedBull', 'NUEVA_SOLICITUD', '', 'Nueva solicitud para tienda abierta', 'ACTIVE', 'NO', 'SI', 'redbull@diagroup.com', 5]
       ]
@@ -21,6 +21,7 @@ describe('21_element_service', function () {
     expect(elements).toHaveLength(2);
     expect(elements[0].id_elemento).toBe('NEV-REDBULL-NUEVA');
     expect(elements[1].id_elemento).toBe('CAF-NUEVA');
+    expect(elements[1].mensaje_email).toBe('Mensaje Cafetera');
     expect(global.CacheService._dump()).toHaveProperty(CACHE_KEYS.ELEMENTS);
   });
 

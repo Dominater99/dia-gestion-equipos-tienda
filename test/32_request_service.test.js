@@ -330,8 +330,8 @@ describe('RequestService - submitRequest', function () {
         ['EMAIL_CC_SOPORTE', 'dia.es.soporte.layouts@diagroup.com']
       ],
       Elementos: [
-        ['id_elemento', 'equipo', 'proveedor', 'tipo_gestion', 'subtipo', 'etiqueta', 'estado', 'requiere_service_now', 'solo_tiendas_abiertas', 'email_destino', 'orden'],
-        ['CAF-RETIRADA', 'CAFETERA', '', 'RETIRADA', '', 'Retirada de cafetera sin destino', elementoEstado, 'NO', 'NO', '', 10]
+        ['id_elemento', 'equipo', 'proveedor', 'tipo_gestion', 'subtipo', 'etiqueta', 'estado', 'requiere_service_now', 'solo_tiendas_abiertas', 'email_destino', 'mensaje_email', 'orden'],
+        ['CAF-RETIRADA', 'CAFETERA', '', 'RETIRADA', '', 'Retirada de cafetera sin destino', elementoEstado, 'NO', 'NO', '', 'Mensaje de prueba', 10]
       ],
       Tiendas: [
         STORE_COLUMNS,
@@ -400,7 +400,7 @@ describe('RequestService - submitRequest', function () {
     const sheets = buildFixtures('ACTIVO', 'ACTIVE');
     sheets.Elementos._getRawValues()[1] = [
       'CAF-ERROR-PANTALLA', 'CAFETERA', '', 'ERROR_PANTALLA', '', 'Error en pantalla',
-      'ACTIVE', 'NO', 'NO', '', 10
+      'ACTIVE', 'NO', 'NO', '', 'Mensaje de prueba', 10
     ];
     global.Session.getActiveUser = function () {
       return { getEmail: function () { return 'ana@diagroup.com'; } };
@@ -428,7 +428,7 @@ describe('RequestService - submitRequest', function () {
     const sheets = buildFixtures('ACTIVO', 'ACTIVE');
     sheets.Elementos._getRawValues()[1] = [
       'CAF-NUEVA', 'CAFETERA', '', 'NUEVA_SOLICITUD', '', 'Nueva solicitud para tienda abierta',
-      'ACTIVE', 'NO', 'SI', '', 10
+      'ACTIVE', 'NO', 'SI', '', 'Mensaje de prueba', 10
     ];
     global.Session.getActiveUser = function () {
       return { getEmail: function () { return 'ana@diagroup.com'; } };
@@ -448,15 +448,14 @@ describe('RequestService - submitRequest', function () {
     expect(global.MailApp.sentEmails[0].attachments).toHaveLength(2);
     expect(global.MailApp.sentEmails[0].attachments.map(function (attachment) { return attachment.getName(); }))
       .toEqual(['foto-ubicacion-' + result.idPeticion + '.png', 'foto-layout-' + result.idPeticion + '.png']);
-    expect(global.MailApp.sentEmails[0].body).toContain('Enchufe disponible: SI');
-    expect(global.MailApp.sentEmails[0].body).toContain('Toma de agua disponible: NO');
+    expect(global.MailApp.sentEmails[0].body).toBe('Mensaje de prueba');
   });
 
   test('no registra Nueva solicitud de Cafetera si faltan sus dos columnas de disponibilidad', function () {
     const sheets = buildFixtures('ACTIVO', 'ACTIVE');
     sheets.Elementos._getRawValues()[1] = [
       'CAF-NUEVA', 'CAFETERA', '', 'NUEVA_SOLICITUD', '', 'Nueva solicitud para tienda abierta',
-      'ACTIVE', 'NO', 'SI', '', 10
+      'ACTIVE', 'NO', 'SI', '', 'Mensaje de prueba', 10
     ];
     sheets.Registros._getRawValues()[0] = sheets.Registros._getRawValues()[0].slice(0, 21);
     global.Session.getActiveUser = function () {
@@ -481,7 +480,7 @@ describe('RequestService - submitRequest', function () {
     const sheets = buildFixtures('ACTIVO', 'ACTIVE');
     sheets.Elementos._getRawValues()[1] = [
       'LOCK-NUEVA', 'LOCKER', '', 'NUEVA_SOLICITUD', '', 'Nueva solicitud para tienda abierta',
-      'ACTIVE', 'NO', 'SI', '', 10
+      'ACTIVE', 'NO', 'SI', '', 'Mensaje de prueba', 10
     ];
     global.Session.getActiveUser = function () {
       return { getEmail: function () { return 'ana@diagroup.com'; } };
@@ -566,8 +565,7 @@ describe('RequestService - submitRequest', function () {
 
     expect(result.success).toBe(true);
     expect(sheets.Registros._getRawValues()[1][20]).toBe('Solicitud urgente\nConfirmada con tienda.');
-    expect(global.MailApp.sentEmails[0].body)
-      .toContain('Comentarios: Solicitud urgente\nConfirmada con tienda.');
+    expect(global.MailApp.sentEmails[0].body).toBe('Mensaje de prueba');
   });
 
   test('rechaza una tienda que no pertenece al ámbito visible del usuario', function () {

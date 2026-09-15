@@ -53,8 +53,8 @@ function sendConfirmationEmail_(currentUser, idPeticion, element, payload, syste
     element,
     payload
   );
-  const body = buildConfirmationEmailBody_(currentUser, idPeticion, element, payload);
-  const htmlBody = buildConfirmationEmailHtml_(currentUser, idPeticion, element, payload);
+  const body = buildConfirmationEmailBody_(element);
+  const htmlBody = buildConfirmationEmailHtml_(element);
 
   const options = {
     to: normalizeSingleEmail_(currentUser.email, 'email del usuario'),
@@ -127,51 +127,17 @@ function buildConfirmationSubject_(template, element, payload) {
   return subject.replace(/[\r\n\u0000-\u001F\u007F]+/g, ' ').replace(/ {2,}/g, ' ').trim();
 }
 
-/** Resuelve una vez los textos fijos compartidos por ambos formatos. */
-function confirmationCopy_(currentUser, idPeticion) {
-  const greeting = MAIL_DEFAULTS.CONFIRMATION_GREETING
-    .replace(/{{nombre}}/g, String(currentUser.nombre || ''));
-  const intro = MAIL_DEFAULTS.CONFIRMATION_INTRO.replace(/{{id_peticion}}/g, idPeticion);
-  return { greeting: greeting, intro: intro, footer: MAIL_DEFAULTS.CONFIRMATION_FOOTER };
+/** Devuelve el cuerpo configurado para el elemento seleccionado. */
+function getElementEmailMessage_(element) {
+  const message = String(element && element.mensaje_email || '').trim();
+  if (!message) {
+    throw publicError_('Revisa mensaje_email de Elementos: debe contener el cuerpo del correo.');
+  }
+  return message;
 }
 
-function confirmationFields_(element, payload) {
-  return [
-    [MAIL_FIELD_LABELS.EQUIPMENT, element.equipo],
-    [MAIL_FIELD_LABELS.PROVIDER, element.proveedor],
-    [MAIL_FIELD_LABELS.MANAGEMENT, element.etiqueta],
-    [MAIL_FIELD_LABELS.DETAIL, element.subtipo],
-    [MAIL_FIELD_LABELS.STORE, payload.tienda],
-    [MAIL_FIELD_LABELS.ORIGIN_STORE, payload.tiendaOrigen],
-    [MAIL_FIELD_LABELS.DESTINATION_STORE, payload.tiendaDestino],
-    [MAIL_FIELD_LABELS.COLLECTION_DEADLINE, payload.fechaLimiteRecogida],
-    [MAIL_FIELD_LABELS.START_DATE, payload.fechaInicio],
-    [MAIL_FIELD_LABELS.END_DATE, payload.fechaFin],
-    [MAIL_FIELD_LABELS.WITHDRAWAL_DEADLINE, payload.fechaMaximaRetirada],
-    [MAIL_FIELD_LABELS.SERVICE_NOW, payload.codigoServiceNow],
-    [MAIL_FIELD_LABELS.POWER_OUTLET, payload.enchufeDisponible],
-    [MAIL_FIELD_LABELS.WATER_OUTLET, payload.tomaAguaDisponible],
-    [MAIL_FIELD_LABELS.PHOTO, payload._photoAttachment ? 'Adjunta al correo' : ''],
-    [MAIL_FIELD_LABELS.SCHEDULE_PHOTO, hasPhotoAttachment_(payload, 'fotoHorario') ? 'Adjunta al correo' : ''],
-    [MAIL_FIELD_LABELS.COVERAGE_PHOTO, hasPhotoAttachment_(payload, 'fotoCobertura') ? 'Adjunta al correo' : ''],
-    [MAIL_FIELD_LABELS.LOCATION_PHOTO, hasPhotoAttachment_(payload, 'fotoUbicacion') ? 'Adjunta al correo' : ''],
-    [MAIL_FIELD_LABELS.LAYOUT_PHOTO, hasPhotoAttachment_(payload, 'fotoLayout') ? 'Adjunta al correo' : ''],
-    [MAIL_FIELD_LABELS.COMMENTS, payload.comentarios]
-  ].filter(function (entry) { return entry[1] !== null && entry[1] !== undefined && entry[1] !== ''; });
-}
-
-function hasPhotoAttachment_(payload, fieldName) {
-  return Boolean(payload && payload._photoAttachments && payload._photoAttachments.some(function (photo) {
-    return photo.fieldName === fieldName;
-  }));
-}
-
-function buildConfirmationEmailBody_(currentUser, idPeticion, element, payload) {
-  const copy = confirmationCopy_(currentUser, idPeticion);
-  const fields = confirmationFields_(element, payload).map(function (entry) {
-    return entry[0] + entry[1];
-  });
-  return [copy.greeting, '', copy.intro, ''].concat(fields, ['', copy.footer]).join('\n');
+function buildConfirmationEmailBody_(element) {
+  return getElementEmailMessage_(element);
 }
 
 function escapeMailHtml_(value) {
@@ -187,22 +153,9 @@ function mailHtmlText_(value) {
   return escapeMailHtml_(value).replace(/\r\n?|\n/g, '<br>');
 }
 
-/** Tarjeta HTML autocontenida, compatible con el cuerpo de texto plano. */
-function buildConfirmationEmailHtml_(currentUser, idPeticion, element, payload) {
-  const copy = confirmationCopy_(currentUser, idPeticion);
-  const fields = [[MAIL_HTML_TEXT.REQUEST_ID, idPeticion]].concat(
-    confirmationFields_(element, payload).map(function (entry) {
-      return [entry[0].replace(/:\s*$/, ''), entry[1]];
-    })
-  );
-  const rows = fields.map(function (entry) {
-    return '<tr><td style="width:34%;padding:8px 10px;vertical-align:top;color:' +
-      MAIL_HTML_THEME.muted + ';font-size:12px;">' + escapeMailHtml_(entry[0]) +
-      '</td><td style="padding:8px 10px;vertical-align:top;color:' + MAIL_HTML_THEME.text +
-      ';font-size:12px;font-weight:600;overflow-wrap:anywhere;">' + mailHtmlText_(entry[1]) +
-      '</td></tr>';
-  }).join('');
-
+/** Tarjeta HTML que muestra, con saltos de línea seguros, el mensaje del elemento. */
+function buildConfirmationEmailHtml_(element) {
+  const message = getElementEmailMessage_(element);
   return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head>' +
     '<body style="margin:0;padding:0;background:' + MAIL_HTML_THEME.background +
     ';color:' + MAIL_HTML_THEME.text + ';font-family:' + MAIL_HTML_THEME.fontFamily + ';">' +
@@ -218,31 +171,21 @@ function buildConfirmationEmailHtml_(currentUser, idPeticion, element, payload) 
     'border:0;vertical-align:middle;"><span style="padding-left:9px;color:' +
     MAIL_HTML_THEME.heading + ';font-size:12px;font-weight:700;vertical-align:middle;">' +
     escapeMailHtml_(APP_METADATA.NAME) + '</span></td></tr>' +
-    '<tr><td style="padding:28px 18px 30px;text-align:center;">' +
+    '<tr><td style="padding:28px 24px 30px;text-align:center;">' +
     '<span style="display:inline-block;padding:12px 17px;border-radius:50%;background:' +
     MAIL_HTML_THEME.successBackground + ';color:' + MAIL_HTML_THEME.successText +
     ';font-size:22px;">✓</span>' +
-    '<h1 style="margin:14px 0 10px;color:' + MAIL_HTML_THEME.primary +
+    '<h1 style="margin:14px 0 18px;color:' + MAIL_HTML_THEME.primary +
     ';font-size:17px;line-height:1.3;">' + escapeMailHtml_(MAIL_HTML_TEXT.STATUS) + '</h1>' +
-    '<p style="margin:0 0 6px;color:' + MAIL_HTML_THEME.text + ';font-size:13px;">' +
-    mailHtmlText_(copy.greeting) + '</p>' +
-    '<p style="margin:0 0 22px;color:' + MAIL_HTML_THEME.text + ';font-size:13px;">' +
-    mailHtmlText_(copy.intro) + '</p>' +
-    '<p style="margin:0 0 8px;text-align:left;color:' + MAIL_HTML_THEME.heading +
-    ';font-size:11px;font-weight:700;">' + escapeMailHtml_(MAIL_HTML_TEXT.DETAILS) + '</p>' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" ' +
-    'style="background:' + MAIL_HTML_THEME.background + ';border-left:3px solid ' +
-    MAIL_HTML_THEME.primary + ';border-radius:8px;text-align:left;">' + rows + '</table>' +
-    '</td></tr><tr><td style="padding:13px 18px;border-top:1px solid ' +
-    MAIL_HTML_THEME.border + ';text-align:center;color:' + MAIL_HTML_THEME.muted +
-    ';font-size:11px;font-style:italic;">' + mailHtmlText_(copy.footer) +
+    '<div style="text-align:left;color:' + MAIL_HTML_THEME.text + ';font-size:14px;line-height:1.55;">' +
+    mailHtmlText_(message) + '</div>' +
     '</td></tr></table></td></tr></table></body></html>';
 }
 
 if (typeof module !== 'undefined') {
   module.exports = {
-    sendConfirmationEmail_, buildConfirmationEmailBody_, buildConfirmationEmailHtml_,
-    buildConfirmationSubject_, normalizeSingleEmail_
+    sendConfirmationEmail_, getElementEmailMessage_, buildConfirmationEmailBody_,
+    buildConfirmationEmailHtml_, buildConfirmationSubject_, normalizeSingleEmail_
   };
   Object.keys(module.exports).forEach(function (key) {
     global[key] = module.exports[key];
