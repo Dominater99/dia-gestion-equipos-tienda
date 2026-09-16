@@ -53,7 +53,7 @@ function submitRequest(payload) {
     validateRequestPayload_(element, payload);
     getElementEmailMessage_(element);
     const normalizedPayload = normalizeRequestStores_(element, payload, getStoresForUser_(currentUser, cacheConfig));
-    getElementEmailMessage_(element, normalizedPayload);
+    getElementEmailMessage_(element, normalizedPayload, currentUser);
 
     stage = 'REGISTROS';
     idPeticion = registerRequest_(element, normalizedPayload, currentUser, systemParams);
@@ -578,6 +578,7 @@ function registerRequest_(element, payload, currentUser, systemParams) {
     const rowObject = buildRegistroRow_(element, payload, currentUser, idPeticion);
     appendRowFromObject_(sheet, rowObject, headers);
     SpreadsheetApp.flush();
+    payload._registeredRecord = rowObject;
     return idPeticion;
   } finally {
     lock.releaseLock();

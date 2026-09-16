@@ -1,8 +1,7 @@
 /**
  * Servicio de construcción y envío del correo de confirmación.
- * Destinatario principal: quien registra. CC: direcciones de soporte
- * (Sistema.EMAIL_CC_SOPORTE) más, si el elemento elegido tiene uno propio,
- * el email_destino configurado en esa fila de Elementos.
+ * Destinatario principal: email_destino del elemento, cuando exista. CC:
+ * direcciones de soporte (Sistema.EMAIL_CC_SOPORTE) y quien registra.
  */
 const MAIL_HTML_THEME = Object.freeze({
   background: '#f8fafc',
@@ -33,17 +32,22 @@ const MAIL_HTML_TEXT = Object.freeze({
 function sendConfirmationEmail_(currentUser, idPeticion, element, payload, systemParams) {
   const params = systemParams || getSystemParams_();
   // La lista predeterminada vive en una sola constante.
-  const ccList = normalizeSupportCcEmails_(
+  let ccList = normalizeSupportCcEmails_(
     params[SYSTEM_PARAM_KEYS.SUPPORT_CC_EMAIL] || MAIL_DEFAULTS.SUPPORT_CC_EMAIL
   );
+  const requesterEmail = normalizeSingleEmail_(currentUser.email, 'email del usuario');
+  const destination = String(element.email_destino || '').trim()
+    ? normalizeSingleEmail_(element.email_destino, 'email_destino de Elementos')
+    : requesterEmail;
+  ccList = ccList.filter(function (email) {
+    return String(email).toLowerCase() !== destination.toLowerCase();
+  });
+  if (!hasEmail_(ccList, requesterEmail) && requesterEmail.toLowerCase() !== destination.toLowerCase()) {
+    ccList.push(requesterEmail);
+  }
   const senderName = textSystemParam_(
     params, SYSTEM_PARAM_KEYS.MAIL_SENDER_NAME, MAIL_DEFAULTS.SENDER_NAME
   ).replace(/[\r\n]+/g, ' ');
-
-  if (String(element.email_destino || '').trim()) {
-    const destination = normalizeSingleEmail_(element.email_destino, 'email_destino de Elementos');
-    if (!hasEmail_(ccList, destination)) ccList.push(destination);
-  }
 
   const subject = buildConfirmationSubject_(
     textSystemParam_(params, SYSTEM_PARAM_KEYS.MAIL_SUBJECT,
@@ -51,11 +55,11 @@ function sendConfirmationEmail_(currentUser, idPeticion, element, payload, syste
     element,
     payload
   );
-  const body = buildConfirmationEmailBody_(element, payload);
-  const htmlBody = buildConfirmationEmailHtml_(element, payload);
+  const body = buildConfirmationEmailBody_(element, payload, currentUser, idPeticion);
+  const htmlBody = buildConfirmationEmailHtml_(element, payload, currentUser, idPeticion);
 
   const options = {
-    to: normalizeSingleEmail_(currentUser.email, 'email del usuario'),
+    to: destination,
     cc: ccList.join(','),
     name: senderName,
     subject: subject,
@@ -153,29 +157,23 @@ function buildConfirmationSubject_(template, element, payload) {
 
 /**
  * Devuelve el cuerpo configurado para el elemento y sustituye sus marcadores
- * con valores resueltos en servidor. Se aceptan llaves simples y dobles.
+ * con los campos de Elementos y de la fila creada en Registros. Se aceptan
+ * llaves simples y dobles.
  */
-function getElementEmailMessage_(element, payload) {
+function getElementEmailMessage_(element, payload, currentUser, idPeticion) {
   const message = String(element && element.mensaje_email || '').trim();
   if (!message) {
     throw publicError_('Revisa mensaje_email de Elementos: debe contener el cuerpo del correo.');
   }
   if (!payload) return message;
 
-  const details = payload._storeDetails || {};
-  const store = details.tienda || details.tiendaOrigen || {};
-  const values = {
-    equipo: String(element.equipo || ''),
-    subtipo: String(element.subtipo || ''),
-    tienda_id: String(store.tienda_id || payload.tienda || ''),
-    comentarios: String(payload.comentarios || '')
-  };
-  const rendered = message.replace(/\{\{([a-z_]+)\}\}|\{([a-z_]+)\}/gi, function (marker, doubleKey, singleKey) {
+  const values = buildEmailTemplateValues_(element, payload, currentUser, idPeticion);
+  const rendered = message.replace(/\{\{\s*([a-z_][a-z0-9_]*)\s*\}\}|\{\s*([a-z_][a-z0-9_]*)\s*\}/gi, function (marker, doubleKey, singleKey) {
     const key = String(doubleKey || singleKey).toLowerCase();
     if (!Object.prototype.hasOwnProperty.call(values, key)) {
       throw publicError_('Revisa mensaje_email de Elementos: variable no admitida ' + marker + '.');
     }
-    return values[key];
+    return key === 'comentarios' ? '"' + values[key] + '"' : values[key];
   });
   if (/[{}]/.test(rendered)) {
     throw publicError_('Revisa mensaje_email de Elementos: hay una variable con formato inválido.');
@@ -183,10 +181,33 @@ function getElementEmailMessage_(element, payload) {
   return rendered;
 }
 
-function buildConfirmationEmailBody_(element, payload) {
-  return getElementEmailMessage_(element, payload);
+/** Combina las columnas del elemento y el registro, dando prioridad al registro histórico. */
+function buildEmailTemplateValues_(element, payload, currentUser, idPeticion) {
+  const values = {};
+  addEmailTemplateValues_(values, element);
+  const registro = payload._registeredRecord ||
+    buildRegistroRow_(element, payload, currentUser || {}, idPeticion || '');
+  addEmailTemplateValues_(values, registro);
+  const details = payload._storeDetails || {};
+  const store = details.tienda || details.tiendaOrigen || {};
+  values.tienda_id = String(store.tienda_id || payload.tienda || '');
+  return values;
 }
 
+function addEmailTemplateValues_(target, source) {
+  Object.keys(source || {}).forEach(function (key) {
+    const normalizedKey = normalizeHeader_(key);
+    if (!/^[a-z_][a-z0-9_]*$/.test(normalizedKey)) return;
+    const value = source[key];
+    target[normalizedKey] = value instanceof Date
+      ? Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : String(value === null || value === undefined ? '' : value);
+  });
+}
+
+function buildConfirmationEmailBody_(element, payload, currentUser, idPeticion) {
+  return getElementEmailMessage_(element, payload, currentUser, idPeticion);
+}
 function escapeMailHtml_(value) {
   return String(value === null || value === undefined ? '' : value)
     .replace(/&/g, '&amp;')
@@ -200,9 +221,29 @@ function mailHtmlText_(value) {
   return escapeMailHtml_(value).replace(/\r\n?|\n/g, '<br>');
 }
 
+function buildConfirmationEmailMessageHtml_(element, payload, currentUser, idPeticion) {
+  const template = String(element && element.mensaje_email || '').trim();
+  const rendered = getElementEmailMessage_(element, payload, currentUser, idPeticion);
+  if (!payload) return mailHtmlText_(rendered);
+  const values = buildEmailTemplateValues_(element, payload, currentUser, idPeticion);
+  const pattern = /\{\{\s*([a-z_][a-z0-9_]*)\s*\}\}|\{\s*([a-z_][a-z0-9_]*)\s*\}/gi;
+  let offset = 0;
+  let html = '';
+  template.replace(pattern, function (marker, doubleKey, singleKey, markerOffset) {
+    const key = String(doubleKey || singleKey).toLowerCase();
+    html += mailHtmlText_(template.slice(offset, markerOffset));
+    html += key === 'comentarios'
+      ? '&ldquo;<em>' + mailHtmlText_(values[key]) + '</em>&rdquo;'
+      : mailHtmlText_(values[key]);
+    offset = markerOffset + marker.length;
+    return marker;
+  });
+  return html + mailHtmlText_(template.slice(offset));
+}
+
 /** Tarjeta HTML que muestra, con saltos de línea seguros, el mensaje del elemento. */
-function buildConfirmationEmailHtml_(element, payload) {
-  const message = getElementEmailMessage_(element, payload);
+function buildConfirmationEmailHtml_(element, payload, currentUser, idPeticion) {
+  const message = buildConfirmationEmailMessageHtml_(element, payload, currentUser, idPeticion);
   return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head>' +
     '<body style="margin:0;padding:0;background:' + MAIL_HTML_THEME.background +
     ';color:' + MAIL_HTML_THEME.text + ';font-family:' + MAIL_HTML_THEME.fontFamily + ';">' +
@@ -225,13 +266,13 @@ function buildConfirmationEmailHtml_(element, payload) {
     '<h1 style="margin:14px 0 18px;color:' + MAIL_HTML_THEME.primary +
     ';font-size:17px;line-height:1.3;">' + escapeMailHtml_(MAIL_HTML_TEXT.STATUS) + '</h1>' +
     '<div style="text-align:left;color:' + MAIL_HTML_THEME.text + ';font-size:14px;line-height:1.55;">' +
-    mailHtmlText_(message) + '</div>' +
+    message + '</div>' +
     '</td></tr></table></td></tr></table></body></html>';
 }
 
 if (typeof module !== 'undefined') {
   module.exports = {
-    sendConfirmationEmail_, getElementEmailMessage_, buildConfirmationEmailBody_,
+    sendConfirmationEmail_, getElementEmailMessage_, buildEmailTemplateValues_, addEmailTemplateValues_, buildConfirmationEmailBody_, buildConfirmationEmailMessageHtml_,
     buildConfirmationEmailHtml_, buildConfirmationSubject_, normalizeSupportCcEmails_,
     normalizeSingleEmail_, hasEmail_
   };

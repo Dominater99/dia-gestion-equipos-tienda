@@ -375,10 +375,11 @@ compatibilidad con estados legados.
 
 ## 8. Correo
 
-El destinatario principal es el email autenticado. Las copias son:
+El destinatario principal es `email_destino` del elemento cuando tiene valor; si está vacío, es el
+email autenticado. Las copias son:
 
 1. `EMAIL_CC_SOPORTE`, o su valor predeterminado;
-2. `email_destino` del elemento, cuando exista.
+2. el email autenticado de quien registra.
 
 `EMAIL_CC_SOPORTE` admite una o varias direcciones sintácticamente válidas separadas por comas;
 se rechazan elementos vacíos, punto y coma y saltos de línea. `email_destino` debe contener una sola
@@ -399,9 +400,12 @@ contiene origen y destino. Los marcadores no admitidos provocan fallo de notific
 deshacer una solicitud ya guardada. Se eliminan saltos de línea del asunto.
 
 El correo de confirmación usa `mensaje_email` de la fila seleccionada como cuerpo literal, tanto
-en `body` de texto plano como en `htmlBody`. Admite `{equipo}` o `{{equipo}}`, `subtipo`,
-`tienda_id` y `comentarios` con cualquiera de ambos tipos de llaves; una variable desconocida o mal
-formada rechaza la solicitud. El HTML conserva los saltos de línea y escapa el texto para impedir que
+en `body` de texto plano como en `htmlBody`. Admite `{nombre_columna}` o `{{nombre_columna}}` para
+cualquier columna de la fila seleccionada de `Elementos` y de la fila creada en `Registros`; por
+ejemplo, `{{proveedor}}`, `{{tienda_origen}}`, `{{codigo_servicenow}}`, `{{enchufe_disponible}}` o
+`{{comentarios}}`. La sustitución de `{{comentarios}}` se muestra entre comillas y en cursiva en la versión HTML. La instantánea de `Registros` tiene prioridad sobre `Elementos` cuando coinciden
+los nombres. Se conserva `{{tienda_id}}` como alias del identificador validado de la tienda. Una
+variable desconocida o mal formada rechaza la solicitud. El HTML conserva los saltos de línea y escapa el texto para impedir que
 una celda ejecute etiquetas. La tarjeta conserva la cabecera DIA y el estado de alta,
 con el logo oficial desde `https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg`. No incluye el botón «Abrir la aplicación», enlaces, otros recursos remotos
 ni datos de otras solicitudes. Si `mensaje_email` está vacío, la solicitud se rechaza antes de generar

@@ -32,7 +32,24 @@ describe('31_mail_service', function () {
       _storeDetails: { tienda: { tienda_id: '0001' } }
     });
 
-    expect(body).toBe('Equipo: CAFETERA\nMotivo: Error en pantalla\nTienda: 0001\nComentarios: La pantalla no enciende.');
+    expect(body).toBe('Equipo: CAFETERA\nMotivo: Error en pantalla\nTienda: 0001\nComentarios: "La pantalla no enciende."');
+  });
+  test('admite todas las variables de Elementos y Registros', function () {
+    const body = buildConfirmationEmailBody_(Object.assign({}, element, {
+      proveedor: 'Proveedor A',
+      prioridad: 'Alta',
+      mensaje_email: '{{proveedor}}|{{prioridad}}|{{id_peticion}}|{{email_usuario}}|{{nombre_usuario}}|{{tienda_origen}}|{{tienda_destino}}|{{fecha_limite_recogida}}|{{codigo_servicenow}}|{{enchufe_disponible}}'
+    }), {
+      tiendaOrigen: '0001 - Centro',
+      tiendaDestino: '0002 - Norte',
+      fechaLimiteRecogida: '2099-02-03',
+      codigoServiceNow: 'TASK1234567',
+      enchufeDisponible: 'SI'
+    }, {
+      email: 'ana@diagroup.com', nombre: 'Ana Gómez', delegacion: 'Madrid'
+    }, 'SOL-20260915-0001');
+
+    expect(body).toBe('Proveedor A|Alta|SOL-20260915-0001|ana@diagroup.com|Ana Gómez|0001 - Centro|0002 - Norte|2099-02-03|TASK1234567|SI');
   });
 
   test('rechaza una variable de mensaje_email no admitida', function () {
@@ -41,6 +58,14 @@ describe('31_mail_service', function () {
     }).toThrow(/variable no admitida/i);
   });
 
+
+  test('muestra comentarios entre comillas y en cursiva en el HTML', function () {
+    const html = buildConfirmationEmailHtml_(Object.assign({}, element, {
+      mensaje_email: 'Comentarios: {{comentarios}}'
+    }), { comentarios: 'Línea uno\nLínea dos' }, { email: 'ana@diagroup.com' }, 'SOL-1');
+
+    expect(html).toContain('Comentarios: &ldquo;<em>Línea uno<br>Línea dos</em>&rdquo;');
+  });
   test('sendConfirmationEmail_ usa el CC por defecto si Sistema no define EMAIL_CC_SOPORTE y el elemento no tiene email_destino', function () {
     sendConfirmationEmail_(
       { email: 'ana@diagroup.com', nombre: 'Ana' },
@@ -237,7 +262,7 @@ describe('31_mail_service', function () {
     expect(global.MailApp.sentEmails[0].subject).toBe('Asunto correcto');
   });
 
-  test('sendConfirmationEmail_ añade el email_destino del elemento al CC, además del fijo de soporte', function () {
+  test('sendConfirmationEmail_ usa email_destino como destinatario y copia soporte y solicitante', function () {
     resetMockSheets({ Sistema: [['parametro', 'valor'], ['EMAIL_CC_SOPORTE', 'soporte@diagroup.com']] });
 
     const elementConDestino = Object.assign({}, element, { email_destino: 'cafeteras@diagroup.com' });
@@ -249,7 +274,8 @@ describe('31_mail_service', function () {
       { tienda: '0001' }
     );
 
-    expect(global.MailApp.sentEmails[0].cc).toBe('soporte@diagroup.com,cafeteras@diagroup.com');
+    expect(global.MailApp.sentEmails[0].to).toBe('cafeteras@diagroup.com');
+    expect(global.MailApp.sentEmails[0].cc).toBe('soporte@diagroup.com,ana@diagroup.com');
   });
 
   test('admite varias direcciones de soporte separadas por comas y elimina duplicados', function () {
@@ -263,7 +289,8 @@ describe('31_mail_service', function () {
       Object.assign({}, element, { email_destino: 'cafeteras@diagroup.com' }), { tienda: '0001' }
     );
 
-    expect(global.MailApp.sentEmails[0].cc).toBe('soporte@diagroup.com,Cafeteras@diagroup.com');
+    expect(global.MailApp.sentEmails[0].to).toBe('cafeteras@diagroup.com');
+    expect(global.MailApp.sentEmails[0].cc).toBe('soporte@diagroup.com,ana@diagroup.com');
   });
 
   test('rechaza una lista de soporte con separadores o direcciones vacías no admitidos', function () {
@@ -288,6 +315,7 @@ describe('31_mail_service', function () {
       Object.assign({}, element, { email_destino: 'SOPORTE@diagroup.com' }),
       { tienda: '0001' }
     );
-    expect(global.MailApp.sentEmails[0].cc).toBe('soporte@diagroup.com');
+    expect(global.MailApp.sentEmails[0].to).toBe('SOPORTE@diagroup.com');
+    expect(global.MailApp.sentEmails[0].cc).toBe('ana@diagroup.com');
   });
 });

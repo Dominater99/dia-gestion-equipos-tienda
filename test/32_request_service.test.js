@@ -348,6 +348,22 @@ describe('RequestService - submitRequest', function () {
     });
   }
 
+  test('resuelve en el correo la fila histórica recién creada en Registros', function () {
+    const sheets = buildFixtures('ACTIVO', 'ACTIVE');
+    sheets.Elementos._getRawValues()[1][10] = '{{id_peticion}}|{{email_usuario}}|{{tienda}}|{{comentarios}}';
+    global.Session.getActiveUser = function () {
+      return { getEmail: function () { return 'ana@diagroup.com'; } };
+    };
+
+    const result = submitRequest({
+      idElemento: 'CAF-RETIRADA', tienda: '0001', comentarios: 'Retirada solicitada.'
+    });
+
+    expect(result.success).toBe(true);
+    expect(global.MailApp.sentEmails[0].body).toBe(
+      result.idPeticion + '|ana@diagroup.com|0001 - AV JUAN XXIII 10, Pozuelo de Alarcón|"Retirada solicitada."'
+    );
+  });
   test('graba la fila en Registros (con id_elemento y etiqueta_elemento) y envía el correo de confirmación', function () {
     const sheets = buildFixtures('ACTIVO', 'ACTIVE');
     global.Session.getActiveUser = function () {
