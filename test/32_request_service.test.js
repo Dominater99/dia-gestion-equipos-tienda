@@ -28,15 +28,38 @@ describe('32_request_service - validateRequestPayload_', function () {
   });
 
   test('exige fecha máxima de retirada solo para Locker', function () {
-    const elementLocker = { tipo_gestion: 'RETIRADA', equipo: 'LOCKER', requiere_service_now: 'NO' };
+    const elementLocker = { tipo_gestion: 'RETIRADA', equipo: EQUIPOS.LOCKER, requiere_service_now: 'NO' };
     expect(function () {
-      validateRequestPayload_(elementLocker, { tienda: '0001' });
+      validateRequestPayload_(elementLocker, { tienda: '0001', comentarios: 'Retirada solicitada.' });
     }).toThrow(/fecha máxima/);
 
-    const elementCafetera = { tipo_gestion: 'RETIRADA', equipo: 'CAFETERA', requiere_service_now: 'NO' };
+    const elementCafetera = { tipo_gestion: 'RETIRADA', equipo: EQUIPOS.CAFETERA, requiere_service_now: 'NO' };
     expect(function () {
       validateRequestPayload_(elementCafetera, { tienda: '0001', comentarios: 'Retirada solicitada.' });
     }).not.toThrow();
+  });
+
+  test('conserva la fecha máxima en movimientos y retiradas de cualquier equipo', function () {
+    const visibleStores = [
+      { tienda_id: '0001', direccion: 'Calle Uno', municipio: 'Madrid', estado: 'Abierta' },
+      { tienda_id: '0002', direccion: 'Calle Dos', municipio: 'Madrid', estado: 'Abierta' }
+    ];
+    const movement = normalizeRequestStores_(
+      { tipo_gestion: 'MOVIMIENTO', equipo: EQUIPOS.CAFETERA, requiere_service_now: 'NO', solo_tiendas_abiertas: 'NO' },
+      {
+        tiendaOrigen: '0001', tiendaDestino: '0002', fechaMaximaRetirada: '2099-01-01',
+        comentarios: 'Movimiento solicitado.'
+      },
+      visibleStores
+    );
+    const removal = normalizeRequestStores_(
+      { tipo_gestion: 'RETIRADA', equipo: EQUIPOS.NEVERA, requiere_service_now: 'NO', solo_tiendas_abiertas: 'NO' },
+      { tienda: '0001', fechaMaximaRetirada: '2099-01-01', comentarios: 'Retirada solicitada.' },
+      visibleStores
+    );
+
+    expect(movement.fechaMaximaRetirada).toBe('2099-01-01');
+    expect(removal.fechaMaximaRetirada).toBe('2099-01-01');
   });
 
   test('rechaza un código de ServiceNow con formato incorrecto cuando el elemento lo requiere', function () {

@@ -34,9 +34,7 @@
           storeField('tiendaOrigen', 'Tienda de origen', false),
           storeField('tiendaDestino', 'Tienda de destino', false)
         ];
-        if (element.equipo === 'NEVERA') {
-          fields.push(field('fechaLimiteRecogida', 'Fecha límite para la recogida', 'date', false));
-        }
+        fields.push(field('fechaMaximaRetirada', 'Fecha máxima de retirada', 'date', false));
       } else if (management === 'DESCONEXION_TEMPORAL') {
         fields = [
           storeField('tienda', 'Tienda', filterOpen),
@@ -45,9 +43,12 @@
         ];
       } else if (management === 'RETIRADA') {
         fields = [storeField('tienda', 'Tienda', filterOpen)];
-        if (element.equipo === 'LOCKER') {
-          fields.push(field('fechaMaximaRetirada', 'Fecha máxima de retirada', 'date', true));
-        }
+        fields.push(field(
+          'fechaMaximaRetirada',
+          'Fecha máxima de retirada',
+          'date',
+          element.equipo === 'LOCKER'
+        ));
       } else if (management === 'ERROR_PANTALLA' && element.equipo === 'CAFETERA') {
         fields = [
           storeField('tienda', 'Tienda', filterOpen),

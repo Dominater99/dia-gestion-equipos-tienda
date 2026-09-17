@@ -226,7 +226,9 @@ necesita_codigo_servicenow, codigo_servicenow, comentarios, enchufe_disponible,
 toma_agua_disponible
 ```
 
-Las columnas no aplicables a una gestión se guardan vacías. El texto que comienza por `=`, `+`,
+Las columnas no aplicables a una gestión se guardan vacías. En movimientos y retiradas de cualquier
+equipo, la fecha se guarda en `fecha_maxima_retirada`; `fecha_limite_recogida` se conserva únicamente
+por compatibilidad con registros históricos. El texto que comienza por `=`, `+`,
 `-` o `@` se prefija para impedir que Sheets lo evalúe como fórmula.
 `necesita_codigo_servicenow` conserva el valor efectivo del elemento en el momento del alta; es
 una instantánea histórica deliberada, aunque el maestro `Elementos` cambie después.
@@ -275,9 +277,9 @@ registra el fallo de `google.script.run` en su propia consola.
 | Gestión | Campos obligatorios | Campos condicionales |
 |---|---|---|
 | `NUEVA_SOLICITUD` | tienda | en Cafetera: enchufe, toma de agua, foto de ubicación y foto de layout; en Locker: enchufe, fotos de horario, cobertura, ubicación y layout |
-| `MOVIMIENTO` | tienda de origen y destino | fecha límite opcional para neveras |
+| `MOVIMIENTO` | tienda de origen y destino | fecha máxima de retirada opcional para cualquier equipo |
 | `DESCONEXION_TEMPORAL` | tienda, fecha de inicio y fin | — |
-| `RETIRADA` | tienda | fecha máxima obligatoria para lockers |
+| `RETIRADA` | tienda | fecha máxima de retirada obligatoria para lockers y opcional para neveras y cafeteras |
 | `INCIDENCIA_SERVICENOW` | tienda | código ServiceNow si la fila lo requiere |
 | `RECLAMACION_SIN_PARTE` | tienda | — |
 | `ERROR_PANTALLA` de Cafetera | tienda, foto y comentarios | — |

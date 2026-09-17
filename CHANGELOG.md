@@ -27,6 +27,7 @@ cuando existe una versión publicada.
 
 ### Cambiado
 
+- Movimientos y retiradas de cualquier equipo muestran y registran el campo «Fecha máxima de retirada»; es obligatorio solo para retiradas de lockers.
 - El cupo diario lee `Registros` desde el final por bloques y reutiliza la cabecera al insertar.
 - La caché fragmentada usa operaciones por lotes y la limpieza de limitadores continúa mientras
   queden estados vencidos; los estados corruptos de envíos se registran y recuperan.

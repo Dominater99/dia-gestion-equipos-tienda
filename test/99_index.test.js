@@ -111,6 +111,8 @@ describe('99_index - contrato visual y accesible', function () {
     expect(html).toContain('renderStoreCard(card, result.store)');
     expect(html).toContain('inputRow.hidden = true');
     expect(html).toContain("management === 'NUEVA_SOLICITUD'");
+    expect(html).toContain("field('fechaMaximaRetirada', 'Fecha máxima de retirada', 'date', false)");
+    expect(html).toContain("element.equipo === 'LOCKER'");
     expect(html).toContain("field('enchufeDisponible', '¿Enchufe disponible?', 'yes-no', true)");
     expect(html).toContain("field('tomaAguaDisponible', '¿Toma de agua disponible?', 'yes-no', true)");
     expect(html).toContain("element.equipo === 'LOCKER'");

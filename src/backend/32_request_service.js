@@ -184,11 +184,10 @@ function normalizeRequestStores_(element, payload, visibleStores) {
   }
   const allowedDates = element.tipo_gestion === TIPOS_GESTION.DESCONEXION_TEMPORAL
     ? ['fechaInicio', 'fechaFin']
-    : element.tipo_gestion === TIPOS_GESTION.MOVIMIENTO && element.equipo === EQUIPOS.NEVERA
-      ? ['fechaLimiteRecogida']
-      : element.tipo_gestion === TIPOS_GESTION.RETIRADA && element.equipo === EQUIPOS.LOCKER
-        ? ['fechaMaximaRetirada']
-        : [];
+    : (element.tipo_gestion === TIPOS_GESTION.MOVIMIENTO ||
+      element.tipo_gestion === TIPOS_GESTION.RETIRADA)
+      ? ['fechaMaximaRetirada']
+      : [];
   ['fechaLimiteRecogida', 'fechaInicio', 'fechaFin', 'fechaMaximaRetirada'].forEach(function (fieldName) {
     if (allowedDates.indexOf(fieldName) === -1) delete result[fieldName];
   });
