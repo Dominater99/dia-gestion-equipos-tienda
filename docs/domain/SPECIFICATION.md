@@ -153,7 +153,7 @@ Contratos:
 - `estado`: `ACTIVE` o `INACTIVE`;
 - `requiere_service_now` y `solo_tiendas_abiertas`: `SI` o `NO`;
 - `orden` controla el orden ascendente del menú;
-- `email_destino` añade una copia al correo cuando tiene valor;
+- `email_destino` define uno o varios destinatarios principales separados por comas cuando tiene valor;
 - `mensaje_email` es obligatorio y contiene el cuerpo literal del correo de registro para esa opción;
 - `proveedor` y `subtipo` pueden quedar vacíos.
 
@@ -377,15 +377,16 @@ compatibilidad con estados legados.
 
 ## 8. Correo
 
-El destinatario principal es `email_destino` del elemento cuando tiene valor; si está vacío, es el
-email autenticado. Las copias son:
+El destinatario principal es `email_destino` del elemento cuando tiene valor; admite varias
+direcciones separadas por comas. Si está vacío, el destinatario principal es el email autenticado.
+Las copias son:
 
 1. `EMAIL_CC_SOPORTE`, o su valor predeterminado;
 2. el email autenticado de quien registra.
 
-`EMAIL_CC_SOPORTE` admite una o varias direcciones sintácticamente válidas separadas por comas;
-se rechazan elementos vacíos, punto y coma y saltos de línea. `email_destino` debe contener una sola
-dirección válida. Las direcciones repetidas se eliminan sin distinguir mayúsculas de minúsculas. Una
+`EMAIL_CC_SOPORTE` y `email_destino` admiten una o varias direcciones sintácticamente válidas
+separadas por comas; se rechazan elementos vacíos, punto y coma y saltos de línea. Cada dirección de
+`email_destino` debe ser válida. Las direcciones repetidas se eliminan sin distinguir mayúsculas de minúsculas. Una
 configuración inválida provoca fallo de notificación, sin deshacer el registro ya guardado.
 
 El nombre visible del remitente procede de `NOMBRE_REMITENTE_EMAIL`, con valor predeterminado

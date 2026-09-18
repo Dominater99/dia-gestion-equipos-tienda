@@ -27,6 +27,7 @@ cuando existe una versión publicada.
 
 ### Cambiado
 
+- `Elementos.email_destino` admite varios destinatarios separados por comas, con validación y deduplicación.
 - Movimientos y retiradas de cualquier equipo muestran y registran el campo «Fecha máxima de retirada»; es obligatorio solo para retiradas de lockers.
 - El cupo diario lee `Registros` desde el final por bloques y reutiliza la cabecera al insertar.
 - La caché fragmentada usa operaciones por lotes y la limpieza de limitadores continúa mientras

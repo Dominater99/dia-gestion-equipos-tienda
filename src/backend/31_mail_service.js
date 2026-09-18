@@ -36,13 +36,13 @@ function sendConfirmationEmail_(currentUser, idPeticion, element, payload, syste
     params[SYSTEM_PARAM_KEYS.SUPPORT_CC_EMAIL] || MAIL_DEFAULTS.SUPPORT_CC_EMAIL
   );
   const requesterEmail = normalizeSingleEmail_(currentUser.email, 'email del usuario');
-  const destination = String(element.email_destino || '').trim()
-    ? normalizeSingleEmail_(element.email_destino, 'email_destino de Elementos')
-    : requesterEmail;
+  const destinationEmails = String(element.email_destino || '').trim()
+    ? normalizeDestinationEmails_(element.email_destino)
+    : [requesterEmail];
   ccList = ccList.filter(function (email) {
-    return String(email).toLowerCase() !== destination.toLowerCase();
+    return !hasEmail_(destinationEmails, email);
   });
-  if (!hasEmail_(ccList, requesterEmail) && requesterEmail.toLowerCase() !== destination.toLowerCase()) {
+  if (!hasEmail_(destinationEmails, requesterEmail) && !hasEmail_(ccList, requesterEmail)) {
     ccList.push(requesterEmail);
   }
   const senderName = textSystemParam_(
@@ -59,7 +59,7 @@ function sendConfirmationEmail_(currentUser, idPeticion, element, payload, syste
   const htmlBody = buildConfirmationEmailHtml_(element, payload, currentUser, idPeticion);
 
   const options = {
-    to: destination,
+    to: destinationEmails.join(','),
     cc: ccList.join(','),
     name: senderName,
     subject: subject,
@@ -90,17 +90,22 @@ function buildPhotoAttachments_(idPeticion, payload) {
  * elimina duplicados sin distinguir mayúsculas de minúsculas.
  */
 function normalizeSupportCcEmails_(value) {
+  return normalizeEmailList_(value, SYSTEM_PARAM_KEYS.SUPPORT_CC_EMAIL);
+}
+
+function normalizeDestinationEmails_(value) {
+  return normalizeEmailList_(value, 'email_destino de Elementos');
+}
+
+function normalizeEmailList_(value, source) {
   const rawValue = String(value || '').trim();
-  if (!rawValue || /[;\r\n]/.test(rawValue)) {
-    throw publicError_('Revisa ' + SYSTEM_PARAM_KEYS.SUPPORT_CC_EMAIL + ': usa direcciones válidas separadas por comas.');
-  }
+  const errorMessage = 'Revisa ' + source + ': usa direcciones válidas separadas por comas.';
+  if (!rawValue || /[;\r\n]/.test(rawValue)) throw publicError_(errorMessage);
   const emails = rawValue.split(',').map(function (email) { return email.trim(); });
-  if (emails.some(function (email) { return !email; })) {
-    throw publicError_('Revisa ' + SYSTEM_PARAM_KEYS.SUPPORT_CC_EMAIL + ': usa direcciones válidas separadas por comas.');
-  }
+  if (emails.some(function (email) { return !email; })) throw publicError_(errorMessage);
   const uniqueEmails = [];
   emails.forEach(function (email) {
-    const normalized = normalizeSingleEmail_(email, SYSTEM_PARAM_KEYS.SUPPORT_CC_EMAIL);
+    const normalized = normalizeSingleEmail_(email, source);
     if (!hasEmail_(uniqueEmails, normalized)) uniqueEmails.push(normalized);
   });
   return uniqueEmails;
@@ -274,7 +279,7 @@ if (typeof module !== 'undefined') {
   module.exports = {
     sendConfirmationEmail_, getElementEmailMessage_, buildEmailTemplateValues_, addEmailTemplateValues_, buildConfirmationEmailBody_, buildConfirmationEmailMessageHtml_,
     buildConfirmationEmailHtml_, buildConfirmationSubject_, normalizeSupportCcEmails_,
-    normalizeSingleEmail_, hasEmail_
+    normalizeDestinationEmails_, normalizeSingleEmail_, hasEmail_
   };
   Object.keys(module.exports).forEach(function (key) {
     global[key] = module.exports[key];

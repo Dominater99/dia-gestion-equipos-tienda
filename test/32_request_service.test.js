@@ -711,7 +711,7 @@ describe('RequestService - submitRequest', function () {
     });
   });
 
-  test('identifica email_destino cuando la dirección del elemento no es válida', function () {
+  test('envía a varias direcciones de email_destino del elemento', function () {
     const sheets = buildFixtures('ACTIVO', 'ACTIVE');
     sheets.Elementos._getRawValues()[1][9] = 'uno@diagroup.com,dos@diagroup.com';
     global.Session.getActiveUser = function () {
@@ -721,8 +721,9 @@ describe('RequestService - submitRequest', function () {
       idElemento: 'CAF-RETIRADA', tienda: '0001', comentarios: 'Solicitud registrada.'
     });
     expect(result.success).toBe(true);
-    expect(result.notificationSent).toBe(false);
-    expect(result.message).toContain('email_destino de Elementos');
+    expect(result.notificationSent).toBe(true);
+    expect(global.MailApp.sentEmails[0].to).toBe('uno@diagroup.com,dos@diagroup.com');
+    expect(global.MailApp.sentEmails[0].cc).toContain('ana@diagroup.com');
     expect(sheets.Registros._getRawValues()).toHaveLength(2);
   });
 
