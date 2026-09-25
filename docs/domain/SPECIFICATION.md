@@ -141,7 +141,8 @@ Una URL puede incluir el parámetro opcional `tienda` con un código de uno a ci
 ejemplo `?tienda=0001`. Después de superar `checkAccess`, la aplicación lo consulta mediante el
 mismo `lookupStore` que usa la búsqueda manual, con el elemento elegido. Si el formulario es un
 movimiento lo aplica como tienda de origen, persistida en `tienda_origen`; en el resto, como
-`tienda`. Al pulsar «Cambiar tienda» se descarta la precarga durante la sesión. La URL no acredita
+`tienda`. La precarga se mantiene al volver, cambiar de gestión o registrar una solicitud, y solo
+se descarta durante la sesión al pulsar «Cambiar tienda». La URL no acredita
 permisos ni evita las validaciones de usuario, elemento, ámbito, estado de tienda o alta final.
 
 ### 5.3. `Elementos`

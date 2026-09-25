@@ -12,8 +12,7 @@
       uiText: null,
       submissionSucceeded: false,
       isSubmitting: false,
-      preselectedStoreCode: '',
-      preselectedStoreApplied: false
+      preselectedStoreCode: ''
     };
 
     const EQUIPMENT_LABELS = {
@@ -251,15 +250,13 @@
 
     function forgetPreselectedStore_() {
       appState.preselectedStoreCode = '';
-      appState.preselectedStoreApplied = true;
     }
 
     function applyPreselectedStore_(element) {
-      if (appState.preselectedStoreApplied || !appState.preselectedStoreCode) return;
+      if (!appState.preselectedStoreCode) return;
       const fieldName = element.tipo_gestion === 'MOVIMIENTO' ? 'tiendaOrigen' : 'tienda';
       const control = document.getElementById('field-' + fieldName);
       if (!control || typeof control._resolveStore !== 'function') return;
-      appState.preselectedStoreApplied = true;
       control.value = appState.preselectedStoreCode;
       control._resolveStore();
     }

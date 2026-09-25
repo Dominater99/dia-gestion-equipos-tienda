@@ -8,8 +8,8 @@ cuando existe una versión publicada.
 ### Añadido
 
 - Precarga opcional de `?tienda=<código>` desde URL: se valida como una búsqueda manual tras
-  autorizar al usuario y se aplica como tienda de origen en movimientos o tienda única en el resto;
-  «Cambiar tienda» descarta esa precarga durante la sesión.
+  autorizar al usuario y se aplica como tienda de origen en movimientos o tienda única en el resto,
+  hasta que «Cambiar tienda» la descarta durante la sesión.
 - Cupo diario de registros por usuario, inicialmente 10 y configurable mediante
   `LIMITE_REGISTROS_DIARIOS_USUARIO` en `Sistema`; comprobación bajo bloqueo con la hoja
   `Registros` como fuente de verdad.

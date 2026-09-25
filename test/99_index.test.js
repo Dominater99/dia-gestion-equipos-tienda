@@ -180,7 +180,7 @@ describe('99_index - contrato visual y accesible', function () {
     });
   });
 
-  test('precarga la tienda de la URL una sola vez y la usa como origen en movimientos', function () {
+  test('mantiene la tienda de la URL hasta que Cambiar tienda la descarta', function () {
     const locationSource = html.slice(
       html.indexOf('function getPreselectedStoreCode_(location)'),
       html.indexOf('function handleAccessResult')
@@ -194,7 +194,7 @@ describe('99_index - contrato visual y accesible', function () {
     const applyStart = html.indexOf('function applyPreselectedStore_(element)');
     const applyEnd = html.indexOf('\n\n  </script>', applyStart);
     const applySource = html.slice(applyStart, applyEnd).trim();
-    const appState = { preselectedStoreCode: '0001', preselectedStoreApplied: false };
+    const appState = { preselectedStoreCode: '0001' };
     const origin = { value: '', _resolveStore: jest.fn() };
     const document = { getElementById: jest.fn(function (id) {
       return id === 'field-tiendaOrigen' ? origin : null;
@@ -207,8 +207,8 @@ describe('99_index - contrato visual y accesible', function () {
     applyPreselectedStore({ tipo_gestion: 'MOVIMIENTO' });
 
     expect(origin.value).toBe('0001');
-    expect(origin._resolveStore).toHaveBeenCalledTimes(1);
-    expect(appState.preselectedStoreApplied).toBe(true);
+    expect(origin._resolveStore).toHaveBeenCalledTimes(2);
+    expect(appState.preselectedStoreCode).toBe('0001');
 
     const clearStart = html.indexOf('function forgetPreselectedStore_()');
     const clearEnd = html.indexOf('function applyPreselectedStore_(element)', clearStart);
@@ -218,9 +218,8 @@ describe('99_index - contrato visual y accesible', function () {
     )(appState);
     clearPreselectedStore();
     expect(appState.preselectedStoreCode).toBe('');
-    expect(appState.preselectedStoreApplied).toBe(true);
 
-    const singleAppState = { preselectedStoreCode: '0002', preselectedStoreApplied: false };
+    const singleAppState = { preselectedStoreCode: '0002' };
     const store = { value: '', _resolveStore: jest.fn() };
     const singleDocument = { getElementById: jest.fn(function (id) {
       return id === 'field-tienda' ? store : null;
