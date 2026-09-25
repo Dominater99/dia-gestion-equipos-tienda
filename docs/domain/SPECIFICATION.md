@@ -137,6 +137,13 @@ planograma, agrupación comercial, superficie, identificador, delegación, almac
 No descarga el maestro completo. El servidor vuelve a validar el ámbito y persiste
 `tienda_id - direccion, municipio`.
 
+Una URL puede incluir el parámetro opcional `tienda` con un código de uno a cinco dígitos, por
+ejemplo `?tienda=0001`. Después de superar `checkAccess`, la aplicación lo consulta mediante el
+mismo `lookupStore` que usa la búsqueda manual, con el elemento elegido. Si el formulario es un
+movimiento lo aplica como tienda de origen, persistida en `tienda_origen`; en el resto, como
+`tienda`. Al pulsar «Cambiar tienda» se descarta la precarga durante la sesión. La URL no acredita
+permisos ni evita las validaciones de usuario, elemento, ámbito, estado de tienda o alta final.
+
 ### 5.3. `Elementos`
 
 Cabeceras:

@@ -541,6 +541,9 @@
     }
 
     function configureStoreLookup(control, status, error, card, change, inputRow, action) {
+      control._resolveStore = function () {
+        resolveStore(control, status, error, card, change, inputRow, action);
+      };
       control.addEventListener('input', function () {
         const numericValue = control.value.replace(/\D/g, '').slice(0, FORM_RULES.storeIdMaxLength);
         if (control.value !== numericValue) control.value = numericValue;
@@ -554,6 +557,7 @@
       });
 
       change.addEventListener('click', function () {
+        forgetPreselectedStore_();
         card.parentElement.classList.remove('field--store-resolved');
         card.hidden = true;
         change.hidden = true;
@@ -567,12 +571,12 @@
       });
 
       action.addEventListener('click', function () {
-        resolveStore(control, status, error, card, change, inputRow, action);
+        control._resolveStore();
       });
       control.addEventListener('keydown', function (event) {
         if (event.key !== 'Enter') return;
         event.preventDefault();
-        resolveStore(control, status, error, card, change, inputRow, action);
+        control._resolveStore();
       });
     }
 

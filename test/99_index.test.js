@@ -103,6 +103,11 @@ describe('99_index - contrato visual y accesible', function () {
     expect(html).toContain('control.maxLength = FORM_RULES.storeIdMaxLength');
     expect(html).toContain("showLoading('Buscando tienda…')");
     expect(html).toContain('.lookupStore(code, appState.currentElement.id_elemento)');
+    expect(html).toContain('google.script.url.getLocation');
+    expect(html).toContain('getPreselectedStoreCode_(location)');
+    expect(html).toContain("element.tipo_gestion === 'MOVIMIENTO' ? 'tiendaOrigen' : 'tienda'");
+    expect(html).toContain('control._resolveStore();');
+    expect(html).toContain('forgetPreselectedStore_();');
     expect(html).toContain('control.maxLength = FORM_RULES.commentMaxLength');
     expect(html).toContain('appState.uiText.commentsHint');
     expect(UI_TEXT_DEFAULTS.COMMENTS_HINT).toContain('se enviará directamente al proveedor');
@@ -173,6 +178,61 @@ describe('99_index - contrato visual y accesible', function () {
     ['2026-09-13', '2026-02-29', '2024-02-29', '13/09/2026', ''].forEach(function (value) {
       expect(clientIsValidDate(value)).toBe(isValidIsoDate_(value));
     });
+  });
+
+  test('precarga la tienda de la URL una sola vez y la usa como origen en movimientos', function () {
+    const locationSource = html.slice(
+      html.indexOf('function getPreselectedStoreCode_(location)'),
+      html.indexOf('function handleAccessResult')
+    ).trim();
+    const getPreselectedStoreCode = new Function(
+      locationSource + '; return getPreselectedStoreCode_;'
+    )();
+    expect(getPreselectedStoreCode({ parameter: { tienda: ' 0001 ' } })).toBe('0001');
+    expect(getPreselectedStoreCode({ parameter: {} })).toBe('');
+
+    const applyStart = html.indexOf('function applyPreselectedStore_(element)');
+    const applyEnd = html.indexOf('\n\n  </script>', applyStart);
+    const applySource = html.slice(applyStart, applyEnd).trim();
+    const appState = { preselectedStoreCode: '0001', preselectedStoreApplied: false };
+    const origin = { value: '', _resolveStore: jest.fn() };
+    const document = { getElementById: jest.fn(function (id) {
+      return id === 'field-tiendaOrigen' ? origin : null;
+    }) };
+    const applyPreselectedStore = new Function(
+      'appState', 'document', applySource + '; return applyPreselectedStore_;'
+    )(appState, document);
+
+    applyPreselectedStore({ tipo_gestion: 'MOVIMIENTO' });
+    applyPreselectedStore({ tipo_gestion: 'MOVIMIENTO' });
+
+    expect(origin.value).toBe('0001');
+    expect(origin._resolveStore).toHaveBeenCalledTimes(1);
+    expect(appState.preselectedStoreApplied).toBe(true);
+
+    const clearStart = html.indexOf('function forgetPreselectedStore_()');
+    const clearEnd = html.indexOf('function applyPreselectedStore_(element)', clearStart);
+    const clearSource = html.slice(clearStart, clearEnd).trim();
+    const clearPreselectedStore = new Function(
+      'appState', clearSource + '; return forgetPreselectedStore_;'
+    )(appState);
+    clearPreselectedStore();
+    expect(appState.preselectedStoreCode).toBe('');
+    expect(appState.preselectedStoreApplied).toBe(true);
+
+    const singleAppState = { preselectedStoreCode: '0002', preselectedStoreApplied: false };
+    const store = { value: '', _resolveStore: jest.fn() };
+    const singleDocument = { getElementById: jest.fn(function (id) {
+      return id === 'field-tienda' ? store : null;
+    }) };
+    const applySingleStore = new Function(
+      'appState', 'document', applySource + '; return applyPreselectedStore_;'
+    )(singleAppState, singleDocument);
+
+    applySingleStore({ tipo_gestion: 'RETIRADA' });
+
+    expect(store.value).toBe('0002');
+    expect(store._resolveStore).toHaveBeenCalledTimes(1);
   });
 
   test('deriva DR del email con apellido separado por coma', function () {

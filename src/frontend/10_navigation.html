@@ -11,7 +11,9 @@
       currentElement: null,
       uiText: null,
       submissionSucceeded: false,
-      isSubmitting: false
+      isSubmitting: false,
+      preselectedStoreCode: '',
+      preselectedStoreApplied: false
     };
 
     const EQUIPMENT_LABELS = {
@@ -21,11 +23,23 @@
     };
 
     document.addEventListener('DOMContentLoaded', function () {
+      google.script.url.getLocation(function (location) {
+        appState.preselectedStoreCode = getPreselectedStoreCode_(location);
+        loadAccess_();
+      });
+    });
+
+    function loadAccess_() {
       google.script.run
         .withSuccessHandler(handleAccessResult)
         .withFailureHandler(handleAccessFailure)
         .checkAccess();
-    });
+    }
+
+    function getPreselectedStoreCode_(location) {
+      const parameters = location && location.parameter ? location.parameter : {};
+      return String(parameters.tienda || '').trim();
+    }
 
     function handleAccessResult(result) {
       hideLoading();
@@ -229,9 +243,25 @@
             appState.currentElement = element;
             renderForm();
             showScreen('screenForm');
+            applyPreselectedStore_(element);
           });
           list.appendChild(button);
         });
+    }
+
+    function forgetPreselectedStore_() {
+      appState.preselectedStoreCode = '';
+      appState.preselectedStoreApplied = true;
+    }
+
+    function applyPreselectedStore_(element) {
+      if (appState.preselectedStoreApplied || !appState.preselectedStoreCode) return;
+      const fieldName = element.tipo_gestion === 'MOVIMIENTO' ? 'tiendaOrigen' : 'tienda';
+      const control = document.getElementById('field-' + fieldName);
+      if (!control || typeof control._resolveStore !== 'function') return;
+      appState.preselectedStoreApplied = true;
+      control.value = appState.preselectedStoreCode;
+      control._resolveStore();
     }
 
   </script>
