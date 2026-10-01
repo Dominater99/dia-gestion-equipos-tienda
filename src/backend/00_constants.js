@@ -22,6 +22,7 @@ const SHEET_NAMES = {
   USUARIOS: 'Usuarios',
   TIENDAS: 'Tiendas',
   SISTEMA: 'Sistema',
+  PARAMETROS_DELEGACION: 'Parametros_delegacion',
   REGISTROS: 'Registros',
   LOGS: 'Logs',
   ELEMENTOS: 'Elementos'
@@ -197,13 +198,18 @@ const CACHE_KEYS = Object.freeze({
   SYSTEM: 'solicitudes:sistema',
   USERS: 'solicitudes:usuarios',
   ELEMENTS: 'solicitudes:elementos',
-  STORES: 'solicitudes:tiendas'
+  STORES: 'solicitudes:tiendas',
+  DELEGATION_CONTACTS: 'solicitudes:parametros_delegacion'
 });
 
 const STORE_COLUMNS = Object.freeze([
   'apnut', 'tienda_id', 'delegacion_desc', 'planograma_desc',
   'agr_comercial_id', 'agr_comercial_desc', 'metros_totales',
   'almacen_desc', 'direccion', 'municipio', 'provincia', 'estado'
+]);
+
+const DELEGATION_CONTACT_COLUMNS = Object.freeze([
+  'delegacion', 'contacto', 'email_contacto', 'tlf_contacto'
 ]);
 
 const ESTADO_TIENDA = {
@@ -260,6 +266,7 @@ if (typeof module !== 'undefined') {
     CACHE_DEFAULTS,
     CACHE_KEYS,
     STORE_COLUMNS,
+    DELEGATION_CONTACT_COLUMNS,
     ESTADO_TIENDA,
     ESTADO_ELEMENTO,
     ESTADO_USUARIO_ACTIVO

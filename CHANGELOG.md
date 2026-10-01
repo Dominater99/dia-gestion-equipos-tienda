@@ -7,6 +7,9 @@ cuando existe una versión publicada.
 
 ### Añadido
 
+- Marcadores `{{delegacion_contacto}}`, `{{delegacion_email_contacto}}` y
+  `{{delegacion_tlf_contacto}}` en `Elementos.mensaje_email`, resueltos mediante la nueva
+  pestaña `Parametros_delegacion` y la delegación de la tienda de origen en movimientos.
 - Precarga opcional de `?tienda=<código>` desde URL: se valida como una búsqueda manual tras
   autorizar al usuario y se aplica como tienda de origen en movimientos o tienda única en el resto,
   hasta que «Cambiar tienda» la descarta durante la sesión.

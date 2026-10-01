@@ -95,7 +95,7 @@ en orden con `HtmlService.createHtmlOutputFromFile()`. `clasp push` no requiere 
 
 ## 5. Datos
 
-La hoja activa contiene seis pestañas: cinco de operación y `Logs` para auditoría mínima.
+La hoja activa contiene siete pestañas: seis de operación y `Logs` para auditoría mínima.
 
 ### 5.1. `Usuarios`
 
@@ -165,6 +165,12 @@ Contratos:
 - `mensaje_email` es obligatorio y contiene el cuerpo literal del correo de registro para esa opción;
 - `proveedor` y `subtipo` pueden quedar vacíos.
 
+Además de las columnas de `Elementos` y `Registros`, `mensaje_email` admite los marcadores
+`{{delegacion_contacto}}`, `{{delegacion_email_contacto}}` y `{{delegacion_tlf_contacto}}`.
+Se resuelven con la delegación de la tienda validada —en un movimiento, la tienda de origen— y
+la pestaña `Parametros_delegacion`. Si el mensaje no usa estos marcadores, esa pestaña no se
+consulta.
+
 Tipos de gestión cerrados:
 
 - `NUEVA_SOLICITUD`;
@@ -183,7 +189,21 @@ habilitar la nueva opción se añade manualmente una fila como esta, ajustando `
 CAF-ERROR-PANTALLA, CAFETERA, , ERROR_PANTALLA, , Error en pantalla, ACTIVE, NO, NO, , 30
 ```
 
-### 5.4. `Sistema`
+### 5.4. `Parametros_delegacion`
+
+Cabeceras:
+
+```text
+delegacion, contacto, email_contacto, tlf_contacto
+```
+
+`delegacion` coincide con `Tiendas.delegacion_desc` sin distinguir mayúsculas ni espacios
+exteriores y debe ser única. Cuando un `mensaje_email` usa un marcador de contacto de delegación,
+la aplicación requiere una fila correspondiente; de no existir o estar duplicada, rechaza la
+solicitud antes de registrarla. Sus valores se incorporan solo al correo y no se guardan en
+`Registros`.
+
+### 5.5. `Sistema`
 
 Cabeceras:
 
@@ -196,7 +216,7 @@ clave, valor
 | `ENTORNO` | `PROD` | Entorno declarativo. |
 | `CACHE_HABILITADA` | `TRUE` | Activa las lecturas en `CacheService`. |
 | `CACHE_TTL_CORTO_SEGUNDOS` | `5` | TTL de Usuarios, Elementos y Sistema. |
-| `CACHE_TTL_LARGO_SEGUNDOS` | `100` | TTL de Tiendas. |
+| `CACHE_TTL_LARGO_SEGUNDOS` | `100` | TTL de Tiendas y Parametros_delegacion. |
 | `EMAIL_ADMIN` | Correo definido manualmente | Destinatario del enlace para solicitar acceso. |
 | `EMAIL_CC_SOPORTE` | `dia.es.soporte.layouts@diagroup.com` | Copias de soporte para confirmaciones; admite direcciones separadas por comas. |
 | `NOMBRE_REMITENTE_EMAIL` | `Dia Layouts` | Nombre visible del remitente del correo. |
@@ -221,7 +241,7 @@ escribirla desde el código; las ediciones manuales surten efecto tras el TTL vi
 Los fragmentos se leen, escriben y eliminan con operaciones por lotes de `CacheService`.
 La cabecera debe ser `clave, valor`; ya no se corrige automáticamente una cabecera heredada.
 
-### 5.5. `Registros`
+### 5.6. `Registros`
 
 Cabeceras, en orden:
 
@@ -250,7 +270,7 @@ antes de asignar ID, escribir una fila o enviar correo.
 la solicitud. Las antiguas `clave_idempotencia` y `huella_solicitud` ya no se crean ni se usan;
 si siguen presentes, las nuevas filas las dejan vacías. No se eliminan datos automáticamente.
 
-### 5.6. `Logs`
+### 5.7. `Logs`
 
 Cabeceras, en orden:
 
@@ -509,7 +529,7 @@ Preparación inicial de una hoja:
 
 1. vincular el proyecto de Apps Script a la hoja correcta;
 2. crear manualmente `Sistema` con la cabecera `clave, valor` y los parámetros requeridos;
-3. crear manualmente `Usuarios`, `Tiendas`, `Elementos` y `Registros` con sus cabeceras;
+3. crear manualmente `Usuarios`, `Tiendas`, `Elementos`, `Parametros_delegacion` y `Registros` con sus cabeceras;
 4. cargar y revisar los datos maestros de tiendas y elementos, incluida la fila
    `CAF-ERROR-PANTALLA` si se habilitará esa gestión;
 5. completar `EMAIL_ADMIN`, `EMAIL_CC_SOPORTE` y los `email_destino`; revisar

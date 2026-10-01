@@ -58,6 +58,40 @@ describe('31_mail_service', function () {
     }).toThrow(/variable no admitida/i);
   });
 
+  test('incluye el contacto configurado para la delegación de la tienda', function () {
+    resetMockSheets({
+      Sistema: [['clave', 'valor']],
+      Parametros_delegacion: [
+        ['delegacion', 'contacto', 'email_contacto', 'tlf_contacto'],
+        ['MAD ESTE', 'Jorge Yanez Martin', 'jorge.yanez@diagroup.com', '608361101']
+      ]
+    });
+
+    const body = buildConfirmationEmailBody_(Object.assign({}, element, {
+      mensaje_email: 'Contacto: {{delegacion_contacto}} | {{delegacion_email_contacto}} | {{delegacion_tlf_contacto}}'
+    }), {
+      tienda: '0001 - Dia Centro',
+      _storeDetails: { tienda: { tienda_id: '0001', delegacion_desc: ' mad este ' } }
+    });
+
+    expect(body).toBe('Contacto: Jorge Yanez Martin | jorge.yanez@diagroup.com | 608361101');
+  });
+
+  test('rechaza un marcador de delegación sin contacto parametrizado', function () {
+    resetMockSheets({
+      Sistema: [['clave', 'valor']],
+      Parametros_delegacion: [['delegacion', 'contacto', 'email_contacto', 'tlf_contacto']]
+    });
+
+    expect(function () {
+      buildConfirmationEmailBody_(Object.assign({}, element, {
+        mensaje_email: 'Contacto: {{delegacion_contacto}}'
+      }), {
+        _storeDetails: { tienda: { tienda_id: '0001', delegacion_desc: 'MAD ESTE' } }
+      });
+    }).toThrow(/Parametros_delegacion.*no existe un contacto/i);
+  });
+
 
   test('muestra comentarios entre comillas y en cursiva en el HTML', function () {
     const html = buildConfirmationEmailHtml_(Object.assign({}, element, {

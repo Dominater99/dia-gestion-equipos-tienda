@@ -227,6 +227,7 @@ function normalizeRequestStores_(element, payload, visibleStores) {
     result[fieldName] = String(store.tienda_id) + (address ? ' - ' + address : '');
     result._storeDetails[fieldName] = {
       tienda_id: String(store.tienda_id),
+      delegacion_desc: String(store.delegacion_desc || ''),
       provincia: String(store.provincia || ''),
       municipio: String(store.municipio || ''),
       direccion: String(store.direccion || '')

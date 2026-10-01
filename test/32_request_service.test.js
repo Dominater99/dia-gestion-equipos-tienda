@@ -62,6 +62,19 @@ describe('32_request_service - validateRequestPayload_', function () {
     expect(removal.fechaMaximaRetirada).toBe('2099-01-01');
   });
 
+  test('conserva la delegación de la tienda de origen para el mensaje de un movimiento', function () {
+    const result = normalizeRequestStores_(
+      { tipo_gestion: 'MOVIMIENTO', equipo: EQUIPOS.CAFETERA, requiere_service_now: 'NO', solo_tiendas_abiertas: 'NO' },
+      { tiendaOrigen: '0001', tiendaDestino: '0002', comentarios: 'Movimiento solicitado.' },
+      [
+        { tienda_id: '0001', delegacion_desc: 'MAD ESTE', direccion: 'Calle Uno', municipio: 'Madrid', estado: 'Abierta' },
+        { tienda_id: '0002', delegacion_desc: 'MAD ESTE', direccion: 'Calle Dos', municipio: 'Madrid', estado: 'Abierta' }
+      ]
+    );
+
+    expect(result._storeDetails.tiendaOrigen.delegacion_desc).toBe('MAD ESTE');
+  });
+
   test('rechaza un código de ServiceNow con formato incorrecto cuando el elemento lo requiere', function () {
     const element = { tipo_gestion: 'INCIDENCIA_SERVICENOW', equipo: 'LOCKER', requiere_service_now: 'SI' };
     expect(function () {

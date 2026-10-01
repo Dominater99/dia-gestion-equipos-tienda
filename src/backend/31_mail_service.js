@@ -196,7 +196,17 @@ function buildEmailTemplateValues_(element, payload, currentUser, idPeticion) {
   const details = payload._storeDetails || {};
   const store = details.tienda || details.tiendaOrigen || {};
   values.tienda_id = String(store.tienda_id || payload.tienda || '');
+  if (usesDelegationContactTemplate_(element && element.mensaje_email)) {
+    const contact = getDelegationContact_(store.delegacion_desc);
+    values.delegacion_contacto = String(contact.contacto || '');
+    values.delegacion_email_contacto = String(contact.email_contacto || '');
+    values.delegacion_tlf_contacto = String(contact.tlf_contacto || '');
+  }
   return values;
+}
+
+function usesDelegationContactTemplate_(message) {
+  return /\{\{?\s*delegacion_(?:contacto|email_contacto|tlf_contacto)\s*\}?\}/i.test(String(message || ''));
 }
 
 function addEmailTemplateValues_(target, source) {
@@ -277,7 +287,7 @@ function buildConfirmationEmailHtml_(element, payload, currentUser, idPeticion) 
 
 if (typeof module !== 'undefined') {
   module.exports = {
-    sendConfirmationEmail_, getElementEmailMessage_, buildEmailTemplateValues_, addEmailTemplateValues_, buildConfirmationEmailBody_, buildConfirmationEmailMessageHtml_,
+    sendConfirmationEmail_, getElementEmailMessage_, buildEmailTemplateValues_, usesDelegationContactTemplate_, addEmailTemplateValues_, buildConfirmationEmailBody_, buildConfirmationEmailMessageHtml_,
     buildConfirmationEmailHtml_, buildConfirmationSubject_, normalizeSupportCcEmails_,
     normalizeDestinationEmails_, normalizeSingleEmail_, hasEmail_
   };

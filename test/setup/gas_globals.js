@@ -259,6 +259,7 @@ require(path.join(__dirname, '..', '..', 'src', 'backend', '21_element_service.j
 require(path.join(__dirname, '..', '..', 'src', 'backend', '22_store_service.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '23_log_service.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '24_rate_limit_service.js'));
+require(path.join(__dirname, '..', '..', 'src', 'backend', '25_delegation_service.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '30_auth_service.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '31_mail_service.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '32_request_service.js'));
