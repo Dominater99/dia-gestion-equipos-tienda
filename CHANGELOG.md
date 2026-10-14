@@ -7,6 +7,8 @@ cuando existe una versión publicada.
 
 ### Añadido
 
+- Columna opcional `Elementos.email_copia` para añadir destinatarios en copia a las direcciones
+  de `EMAIL_CC_SOPORTE` y al solicitante, con listas separadas por comas y sin duplicados.
 - Marcadores `{{delegacion_contacto}}`, `{{delegacion_email_contacto}}` y
   `{{delegacion_tlf_contacto}}` en `Elementos.mensaje_email`, resueltos mediante la nueva
   pestaña `Parametros_delegacion` y la delegación de la tienda de origen en movimientos.

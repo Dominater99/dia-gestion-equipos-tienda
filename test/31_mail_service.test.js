@@ -312,6 +312,25 @@ describe('31_mail_service', function () {
     expect(global.MailApp.sentEmails[0].cc).toBe('soporte@diagroup.com,ana@diagroup.com');
   });
 
+  test('combina email_copia con soporte y solicitante sin repetir destinatarios', function () {
+    resetMockSheets({ Sistema: [['clave', 'valor'], ['EMAIL_CC_SOPORTE', 'soporte@diagroup.com']] });
+
+    sendConfirmationEmail_(
+      { email: 'ana@diagroup.com', nombre: 'Ana' }, 'SOL-20260910-0001',
+      Object.assign({}, element, {
+        email_destino: 'proveedor@diagroup.com',
+        email_copia: 'gestion@diagroup.com, SOPORTE@diagroup.com, proveedor@diagroup.com, ana@diagroup.com'
+      }), { tienda: '0001' }
+    );
+
+    expect(global.MailApp.sentEmails[0].to).toBe('proveedor@diagroup.com');
+    expect(global.MailApp.sentEmails[0].cc).toBe('soporte@diagroup.com,gestion@diagroup.com,ana@diagroup.com');
+  });
+
+  test('admite email_copia vacío', function () {
+    expect(normalizeElementCopyEmails_('   ')).toEqual([]);
+  });
+
   test('admite varias direcciones de email_destino separadas por comas y elimina duplicados', function () {
     resetMockSheets({ Sistema: [['clave', 'valor'], ['EMAIL_CC_SOPORTE', 'soporte@diagroup.com']] });
 
@@ -352,6 +371,13 @@ describe('31_mail_service', function () {
     ['uno@diagroup.com;', 'uno@diagroup.com,,dos@diagroup.com', 'uno@diagroup.com\r\nBcc:otro@ejemplo.com']
       .forEach(function (value) {
         expect(function () { normalizeDestinationEmails_(value); }).toThrow(/email_destino de Elementos/);
+      });
+  });
+
+  test('rechaza email_copia con separadores no admitidos o direcciones vacías', function () {
+    ['uno@diagroup.com;', 'uno@diagroup.com,,dos@diagroup.com', 'uno@diagroup.com\r\nBcc:otro@ejemplo.com']
+      .forEach(function (value) {
+        expect(function () { normalizeElementCopyEmails_(value); }).toThrow(/email_copia de Elementos/);
       });
   });
 

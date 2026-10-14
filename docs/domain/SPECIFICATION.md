@@ -70,6 +70,7 @@ src/
     22_store_service.js   búsqueda y ámbito de tiendas
     23_log_service.js     auditoría operativa mínima
     24_rate_limit_service.js protección de intentos por cuenta
+    25_delegation_service.js contactos configurados por delegación
     30_auth_service.js    identidad y acceso
     31_mail_service.js    confirmaciones
     32_request_service.js caso de uso de alta
@@ -151,7 +152,7 @@ Cabeceras:
 
 ```text
 id_elemento, equipo, proveedor, tipo_gestion, subtipo, etiqueta, estado,
-requiere_service_now, solo_tiendas_abiertas, email_destino, mensaje_email, orden
+requiere_service_now, solo_tiendas_abiertas, email_copia, email_destino, mensaje_email, orden
 ```
 
 Contratos:
@@ -161,6 +162,7 @@ Contratos:
 - `estado`: `ACTIVE` o `INACTIVE`;
 - `requiere_service_now` y `solo_tiendas_abiertas`: `SI` o `NO`;
 - `orden` controla el orden ascendente del menú;
+- `email_copia` es opcional y define uno o varios destinatarios en copia separados por comas;
 - `email_destino` define uno o varios destinatarios principales separados por comas cuando tiene valor;
 - `mensaje_email` es obligatorio y contiene el cuerpo literal del correo de registro para esa opción;
 - `proveedor` y `subtipo` pueden quedar vacíos.
@@ -182,11 +184,11 @@ Tipos de gestión cerrados:
 - `ERROR_PANTALLA`, únicamente para Cafetera.
 
 El catálogo se mantiene manualmente en la pestaña; la aplicación no inserta filas de ejemplo. Para
-habilitar la nueva opción se añade manualmente una fila como esta, ajustando `email_destino` y
-`orden` si corresponde:
+habilitar la nueva opción se añade manualmente una fila como esta, ajustando `email_copia`,
+`email_destino`, `mensaje_email` y `orden` si corresponde:
 
 ```text
-CAF-ERROR-PANTALLA, CAFETERA, , ERROR_PANTALLA, , Error en pantalla, ACTIVE, NO, NO, , 30
+CAF-ERROR-PANTALLA, CAFETERA, , ERROR_PANTALLA, , Error en pantalla, ACTIVE, NO, NO, , , Mensaje de correo, 30
 ```
 
 ### 5.4. `Parametros_delegacion`

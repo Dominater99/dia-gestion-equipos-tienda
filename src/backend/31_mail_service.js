@@ -1,7 +1,7 @@
 /**
  * Servicio de construcción y envío del correo de confirmación.
  * Destinatario principal: email_destino del elemento, cuando exista. CC:
- * direcciones de soporte (Sistema.EMAIL_CC_SOPORTE) y quien registra.
+ * direcciones de soporte (Sistema.EMAIL_CC_SOPORTE), email_copia y quien registra.
  */
 const MAIL_HTML_THEME = Object.freeze({
   background: '#f8fafc',
@@ -35,6 +35,9 @@ function sendConfirmationEmail_(currentUser, idPeticion, element, payload, syste
   let ccList = normalizeSupportCcEmails_(
     params[SYSTEM_PARAM_KEYS.SUPPORT_CC_EMAIL] || MAIL_DEFAULTS.SUPPORT_CC_EMAIL
   );
+  normalizeElementCopyEmails_(element.email_copia).forEach(function (email) {
+    if (!hasEmail_(ccList, email)) ccList.push(email);
+  });
   const requesterEmail = normalizeSingleEmail_(currentUser.email, 'email del usuario');
   const destinationEmails = String(element.email_destino || '').trim()
     ? normalizeDestinationEmails_(element.email_destino)
@@ -95,6 +98,13 @@ function normalizeSupportCcEmails_(value) {
 
 function normalizeDestinationEmails_(value) {
   return normalizeEmailList_(value, 'email_destino de Elementos');
+}
+
+/** `email_copia` es opcional, pero cuando se rellena sigue el mismo contrato de lista segura. */
+function normalizeElementCopyEmails_(value) {
+  return String(value || '').trim()
+    ? normalizeEmailList_(value, 'email_copia de Elementos')
+    : [];
 }
 
 function normalizeEmailList_(value, source) {
@@ -289,7 +299,7 @@ if (typeof module !== 'undefined') {
   module.exports = {
     sendConfirmationEmail_, getElementEmailMessage_, buildEmailTemplateValues_, usesDelegationContactTemplate_, addEmailTemplateValues_, buildConfirmationEmailBody_, buildConfirmationEmailMessageHtml_,
     buildConfirmationEmailHtml_, buildConfirmationSubject_, normalizeSupportCcEmails_,
-    normalizeDestinationEmails_, normalizeSingleEmail_, hasEmail_
+    normalizeDestinationEmails_, normalizeElementCopyEmails_, normalizeSingleEmail_, hasEmail_
   };
   Object.keys(module.exports).forEach(function (key) {
     global[key] = module.exports[key];
