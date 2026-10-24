@@ -2,8 +2,7 @@
  * Auditoría operativa mínima. El contexto contiene metadatos estructurados
  * de la solicitud; nunca copia tiendas, comentarios ni excepciones a Logs.
  */
-const HEADERS_LOGS = ['fecha', 'nivel', 'evento', 'email', 'id_solicitud', 'contexto'];
-const LEGACY_HEADERS_LOGS = ['fecha', 'nivel', 'evento', 'email', 'id_solicitud', 'mensaje', 'contexto'];
+const HEADERS_LOGS = ['fecha', 'nivel', 'evento', 'email', 'id_solicitud', 'mensaje', 'contexto'];
 const LOG_CONTEXT_MAX_LENGTH = 1000;
 
 function logAppEventSafely_(event, idPeticion, context, email) {
@@ -12,19 +11,17 @@ function logAppEventSafely_(event, idPeticion, context, email) {
     if (!details) throw new Error('Evento de log no admitido.');
 
     const sheet = getOrCreateLogsSheet_();
-    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    const legacy = LEGACY_HEADERS_LOGS.every(function (header, index) { return headers[index] === header; });
-    if (!legacy && !HEADERS_LOGS.every(function (header, index) { return headers[index] === header; })) {
+    const headers = sheet.getRange(1, 1, 1, HEADERS_LOGS.length).getValues()[0];
+    if (!HEADERS_LOGS.every(function (header, index) { return headers[index] === header; })) {
       throw new Error('La cabecera de Logs no coincide con el esquema esperado.');
     }
-    const row = [
+    sheet.appendRow([
       new Date(), details.level, event,
       escapeFormulaValue_(String(email || '').trim().toLowerCase()),
       escapeFormulaValue_(String(idPeticion || '')),
+      details.message,
       escapeFormulaValue_(serializeLogContext_(context))
-    ];
-    if (legacy) row.splice(5, 0, details.message);
-    sheet.appendRow(row);
+    ]);
     return true;
   } catch {
     // Un fallo de auditoría secundaria no cambia una solicitud ya registrada.
@@ -46,17 +43,16 @@ function serializeLogContext_(context) {
 
 function getOrCreateLogsSheet_() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const logsName = physicalSheetName_(SHEET_NAMES.LOGS);
-  const existing = spreadsheet.getSheetByName(logsName);
+  const existing = spreadsheet.getSheetByName(SHEET_NAMES.LOGS);
   if (existing) return existing;
 
   const lock = LockService.getScriptLock();
   lock.waitLock(SCRIPT_LOCK_WAIT_MS);
   try {
     // Recomprueba dentro del bloqueo: dos peticiones pueden crear Logs a la vez.
-    const alreadyCreated = spreadsheet.getSheetByName(logsName);
+    const alreadyCreated = spreadsheet.getSheetByName(SHEET_NAMES.LOGS);
     if (alreadyCreated) return alreadyCreated;
-    const sheet = spreadsheet.insertSheet(logsName);
+    const sheet = spreadsheet.insertSheet(SHEET_NAMES.LOGS);
     sheet.appendRow(HEADERS_LOGS);
     sheet.getRange(1, 1, 1, HEADERS_LOGS.length)
       .setFontWeight('bold')
@@ -73,7 +69,6 @@ function getOrCreateLogsSheet_() {
 if (typeof module !== 'undefined') {
   module.exports = {
     HEADERS_LOGS,
-    LEGACY_HEADERS_LOGS,
     LOG_CONTEXT_MAX_LENGTH,
     logAppEventSafely_,
     serializeLogContext_,

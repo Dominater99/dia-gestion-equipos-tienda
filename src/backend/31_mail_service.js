@@ -31,23 +31,21 @@ const MAIL_HTML_TEXT = Object.freeze({
  */
 function sendConfirmationEmail_(currentUser, idPeticion, element, payload, systemParams) {
   const params = systemParams || getSystemParams_();
-  const testing = isTestEnvironment_();
   // La lista predeterminada vive en una sola constante.
-  let ccList = testing ? [] : normalizeSupportCcEmails_(
+  let ccList = normalizeSupportCcEmails_(
     params[SYSTEM_PARAM_KEYS.SUPPORT_CC_EMAIL] || MAIL_DEFAULTS.SUPPORT_CC_EMAIL
   );
-  (testing ? [] : normalizeElementCopyEmails_(element.email_copia)).forEach(function (email) {
+  normalizeElementCopyEmails_(element.email_copia).forEach(function (email) {
     if (!hasEmail_(ccList, email)) ccList.push(email);
   });
   const requesterEmail = normalizeSingleEmail_(currentUser.email, 'email del usuario');
-  const destinationEmails = testing ? [testRecipient_()] :
-    String(element.email_destino || '').trim()
-      ? normalizeDestinationEmails_(element.email_destino)
-      : [requesterEmail];
+  const destinationEmails = String(element.email_destino || '').trim()
+    ? normalizeDestinationEmails_(element.email_destino)
+    : [requesterEmail];
   ccList = ccList.filter(function (email) {
     return !hasEmail_(destinationEmails, email);
   });
-  if (!testing && !hasEmail_(destinationEmails, requesterEmail) && !hasEmail_(ccList, requesterEmail)) {
+  if (!hasEmail_(destinationEmails, requesterEmail) && !hasEmail_(ccList, requesterEmail)) {
     ccList.push(requesterEmail);
   }
   const senderName = textSystemParam_(
@@ -61,13 +59,13 @@ function sendConfirmationEmail_(currentUser, idPeticion, element, payload, syste
     payload
   );
   const body = buildConfirmationEmailBody_(element, payload, currentUser, idPeticion);
-  const htmlBody = buildConfirmationEmailHtml_(element, payload, currentUser, idPeticion, params);
+  const htmlBody = buildConfirmationEmailHtml_(element, payload, currentUser, idPeticion);
 
   const options = {
     to: destinationEmails.join(','),
     cc: ccList.join(','),
     name: senderName,
-    subject: (testing ? '[PRUEBAS] ' : '') + subject,
+    subject: subject,
     body: body,
     htmlBody: htmlBody
   };
@@ -185,17 +183,16 @@ function getElementEmailMessage_(element, payload, currentUser, idPeticion) {
   if (!payload) return message;
 
   const values = buildEmailTemplateValues_(element, payload, currentUser, idPeticion);
-  const markers = /\{\{\s*([a-z_][a-z0-9_]*)\s*\}\}|\{\s*([a-z_][a-z0-9_]*)\s*\}/gi;
-  if (/[{}]/.test(message.replace(markers, ''))) {
-    throw publicError_('Revisa mensaje_email de Elementos: hay una variable con formato inválido.', 'CONFIGURACION_INVALIDA');
-  }
-  const rendered = message.replace(markers, function (marker, doubleKey, singleKey) {
+  const rendered = message.replace(/\{\{\s*([a-z_][a-z0-9_]*)\s*\}\}|\{\s*([a-z_][a-z0-9_]*)\s*\}/gi, function (marker, doubleKey, singleKey) {
     const key = String(doubleKey || singleKey).toLowerCase();
     if (!Object.prototype.hasOwnProperty.call(values, key)) {
       throw publicError_('Revisa mensaje_email de Elementos: variable no admitida ' + marker + '.');
     }
     return key === 'comentarios' ? '"' + values[key] + '"' : values[key];
   });
+  if (/[{}]/.test(rendered)) {
+    throw publicError_('Revisa mensaje_email de Elementos: hay una variable con formato inválido.');
+  }
   return rendered;
 }
 
@@ -227,7 +224,6 @@ function addEmailTemplateValues_(target, source) {
     const normalizedKey = normalizeHeader_(key);
     if (!/^[a-z_][a-z0-9_]*$/.test(normalizedKey)) return;
     const value = source[key];
-    if (key.startsWith('_') || key === 'formRevision' || (value && typeof value === 'object' && !(value instanceof Date))) return;
     target[normalizedKey] = value instanceof Date
       ? Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd')
       : String(value === null || value === undefined ? '' : value);
@@ -271,7 +267,7 @@ function buildConfirmationEmailMessageHtml_(element, payload, currentUser, idPet
 }
 
 /** Tarjeta HTML que muestra, con saltos de línea seguros, el mensaje del elemento. */
-function buildConfirmationEmailHtml_(element, payload, currentUser, idPeticion, systemParams) {
+function buildConfirmationEmailHtml_(element, payload, currentUser, idPeticion) {
   const message = buildConfirmationEmailMessageHtml_(element, payload, currentUser, idPeticion);
   return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head>' +
     '<body style="margin:0;padding:0;background:' + MAIL_HTML_THEME.background +
@@ -283,7 +279,7 @@ function buildConfirmationEmailHtml_(element, payload, currentUser, idPeticion, 
     'style="max-width:560px;background:' + MAIL_HTML_THEME.surface + ';border:1px solid ' +
     MAIL_HTML_THEME.border + ';border-radius:14px;">' +
     '<tr><td style="padding:13px 16px;border-bottom:1px solid ' + MAIL_HTML_THEME.border +
-    ';text-align:left;"><img src="' + escapeMailHtml_(resolveLogoUrl_(systemParams || {})) +
+    ';text-align:left;"><img src="' + escapeMailHtml_(BRAND_ASSETS.LOGO_URL) +
     '" width="56" height="31" alt="DIA" style="display:inline-block;width:56px;height:31px;' +
     'border:0;vertical-align:middle;"><span style="padding-left:9px;color:' +
     MAIL_HTML_THEME.heading + ';font-size:12px;font-weight:700;vertical-align:middle;">' +

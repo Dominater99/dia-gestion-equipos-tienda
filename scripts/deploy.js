@@ -56,15 +56,13 @@ function main() {
     throw new Error('La descripción debe tener una sola línea y como máximo 200 caracteres.');
   }
 
-  // La ambigüedad de destinos se detecta antes de commits, git push o clasp push.
-  const activeDeployment = dryRun ? null :
-    parseActiveDeployment(invoke(process.execPath, [claspProgram, 'deployments'], true));
   npm(['run', 'push'].concat(dryRun ? ['--', '--dry-run'] : []));
   if (dryRun) {
     console.log('Validación completa. No se creó una versión ni se actualizó la implementación.');
     return;
   }
 
+  const activeDeployment = parseActiveDeployment(invoke(process.execPath, [claspProgram, 'deployments'], true));
   console.log('Creando una versión de Apps Script...');
   const version = parseVersion(invoke(process.execPath, [claspProgram, 'version', description], true));
   console.log('Actualizando la implementación ' + activeDeployment.id + ' a la versión ' + version + '...');

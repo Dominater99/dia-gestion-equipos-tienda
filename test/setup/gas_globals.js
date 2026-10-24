@@ -253,7 +253,6 @@ global.HtmlService = {
 // `global`, así que al requerir el siguiente ya puede usar las anteriores
 // exactamente igual que en Apps Script.
 require(path.join(__dirname, '..', '..', 'src', 'backend', '00_constants.js'));
-require(path.join(__dirname, '..', '..', 'src', 'backend', '01_environment.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '10_sheet_gateway.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '20_config_service.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '21_element_service.js'));
@@ -261,7 +260,6 @@ require(path.join(__dirname, '..', '..', 'src', 'backend', '22_store_service.js'
 require(path.join(__dirname, '..', '..', 'src', 'backend', '23_log_service.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '24_rate_limit_service.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '25_delegation_service.js'));
-require(path.join(__dirname, '..', '..', 'src', 'backend', '26_form_schema_service.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '30_auth_service.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '31_mail_service.js'));
 require(path.join(__dirname, '..', '..', 'src', 'backend', '32_request_service.js'));

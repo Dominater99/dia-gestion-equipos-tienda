@@ -9,7 +9,9 @@ function consumeSubmissionAttempt_(email) {
     cleanup: cleanupExpiredSubmissionRateStates_,
     parse: parseSubmissionRateState_,
     serialize: serializeSubmissionRateState_,
+    maxParam: SYSTEM_PARAM_KEYS.SUBMISSION_ATTEMPTS_LIMIT,
     defaultMax: SUBMISSION_RATE_LIMIT.MAX_ATTEMPTS,
+    windowParam: SYSTEM_PARAM_KEYS.SUBMISSION_WINDOW_SECONDS,
     defaultWindowMs: SUBMISSION_RATE_LIMIT.WINDOW_MS,
     recoverCorrupt: true,
     tracksLoggedLimit: true,
@@ -51,8 +53,12 @@ function consumeRateAttempt_(email, options) {
       state = {
         windowStart: now,
         attempts: 0,
-        maxAttempts: options.defaultMax,
-        windowMs: options.defaultWindowMs
+        maxAttempts: positiveIntegerSystemParam_(
+          systemParams, options.maxParam, options.defaultMax
+        ),
+        windowMs: rateWindowMs_(
+          systemParams, options.windowParam, options.defaultWindowMs
+        )
       };
       if (options.tracksLoggedLimit) state.limitLogged = false;
     }
@@ -114,8 +120,11 @@ function consumeReadAttempt_(email, kind) {
     cleanup: cleanupExpiredReadRateStates_,
     parse: function (raw) { return parseReadRateState_(raw, kind); },
     serialize: serializeReadRateState_,
+    maxParam: kind === 'access'
+      ? SYSTEM_PARAM_KEYS.ACCESS_LOOKUPS_LIMIT : SYSTEM_PARAM_KEYS.STORE_LOOKUPS_LIMIT,
     defaultMax: kind === 'access'
       ? READ_RATE_LIMIT.ACCESS_MAX_ATTEMPTS : READ_RATE_LIMIT.STORE_MAX_ATTEMPTS,
+    windowParam: SYSTEM_PARAM_KEYS.READ_WINDOW_SECONDS,
     defaultWindowMs: READ_RATE_LIMIT.WINDOW_MS,
     recoverCorrupt: false,
     tracksLoggedLimit: false,

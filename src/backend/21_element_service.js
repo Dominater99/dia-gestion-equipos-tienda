@@ -23,31 +23,14 @@ function getActiveElements_(cacheConfig) {
     });
 }
 
-/** Filtra por usuario después de leer el catálogo compartido en caché. */
-function getActiveElementsForUser_(user, cacheConfig) {
-  return getActiveElements_(cacheConfig).filter(function (element) { return canUseElement_(element, user); });
-}
-
-function canUseElement_(element, user) {
-  if (!element || !isAuthorizedUser_(user) ||
-      String(element.estado).trim().toUpperCase() !== ESTADO_ELEMENTO.ACTIVE) return false;
-  const allowedRole = normalizeElementRole_(element.rol_visible);
-  return allowedRole === ELEMENT_VISIBILITY_ALL || allowedRole === String(user.rol).trim().toUpperCase();
-}
-
-function getElementForUser_(idElemento, user, cacheConfig) {
-  const element = getElementById_(idElemento, cacheConfig);
-  if (!element || String(element.estado).toUpperCase() !== ESTADO_ELEMENTO.ACTIVE) {
-    throw publicError_('La opción seleccionada ya no está disponible. Vuelve a la pantalla de inicio e inténtalo de nuevo.');
-  }
-  if (!canUseElement_(element, user)) {
-    throw publicError_('Esta gestión no está disponible para tu rol. Actualiza la página para ver las opciones permitidas.',
-      'GESTION_NO_PERMITIDA');
-  }
-  return element;
-}
-
-/** Consulta interna sin autorización; los RPC deben usar getElementForUser_. */
+/**
+ * Busca un elemento por su id_elemento, sin filtrar por estado: es
+ * responsabilidad de quien llama decidir qué hacer si está INACTIVE
+ * (por ejemplo, si se desactivó entre que el usuario cargó la página
+ * y el momento de enviar el formulario).
+ * @param {string} idElemento
+ * @returns {Object|undefined}
+ */
 function getElementById_(idElemento, cacheConfig) {
   const elements = getElements_(cacheConfig);
   return elements.find(function (el) {
@@ -57,17 +40,16 @@ function getElementById_(idElemento, cacheConfig) {
 
 function getElements_(cacheConfig) {
   const config = cacheConfig || getCacheConfig_();
-  const elements = readSheetAsObjectsCached_(
+  return readSheetAsObjectsCached_(
     SHEET_NAMES.ELEMENTOS,
     CACHE_KEYS.ELEMENTS,
     config.shortTtlSeconds,
     config.enabled
   );
-  return hydrateElementSchemas_(elements, readFormConfiguration_(config));
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { getActiveElements_, getActiveElementsForUser_, canUseElement_, getElementForUser_, getElementById_, getElements_ };
+  module.exports = { getActiveElements_, getElementById_, getElements_ };
   Object.keys(module.exports).forEach(function (key) {
     global[key] = module.exports[key];
   });

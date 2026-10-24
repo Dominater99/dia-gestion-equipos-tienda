@@ -1,13 +1,5 @@
 describe('23_log_service - auditoría mínima', function () {
-  test('conserva compatibilidad con Logs antiguo sin cambiar su cabecera ni sus filas', function () {
-    const sheets = resetMockSheets({ Logs: [LEGACY_HEADERS_LOGS] });
-    expect(logAppEventSafely_(LOG_EVENTS.REQUEST_REJECTED, '',
-      { etapa: 'VALIDACION', motivo: 'FECHA_NO_FUTURA' }, 'ana@example.com')).toBe(true);
-    expect(sheets.Logs._getRawValues()[0]).toEqual(LEGACY_HEADERS_LOGS);
-    expect(sheets.Logs._getRawValues()[1][5]).toBe('Solicitud rechazada.');
-    expect(JSON.parse(sheets.Logs._getRawValues()[1][6]).motivo).toBe('FECHA_NO_FUTURA');
-  });
-  test('crea Logs una sola vez y registra contexto JSON en seis columnas', function () {
+  test('crea Logs una sola vez y registra contexto JSON en las siete columnas', function () {
     const sheets = resetMockSheets({});
 
     expect(logAppEventSafely_(
@@ -17,20 +9,22 @@ describe('23_log_service - auditoría mínima', function () {
       'Ana@diagroup.com'
     )).toBe(true);
     expect(sheets.Logs._getRawValues()[0]).toEqual(HEADERS_LOGS);
-    expect(sheets.Logs._getRawValues()[1].slice(1, 5)).toEqual([
-      'INFO', 'SOLICITUD_REGISTRADA', 'ana@diagroup.com', 'SOL-20260912-0002'
+    expect(sheets.Logs._getRawValues()[1].slice(1, 6)).toEqual([
+      'INFO', 'SOLICITUD_REGISTRADA', 'ana@diagroup.com', 'SOL-20260912-0002',
+      'Solicitud registrada correctamente.'
     ]);
-    expect(JSON.parse(sheets.Logs._getRawValues()[1][5])).toEqual({
+    expect(JSON.parse(sheets.Logs._getRawValues()[1][6])).toEqual({
       etapa: 'NOTIFICACION', idElemento: 'CAF-RETIRADA', notificacionEnviada: true
     });
-    expect(sheets.Logs._getRawValues()[1]).toHaveLength(6);
+    expect(sheets.Logs._getRawValues()[1]).toHaveLength(7);
 
     expect(logAppEventSafely_(
       LOG_EVENTS.REQUEST_REJECTED, '', { etapa: 'VALIDACION' }, 'ana@diagroup.com'
     )).toBe(true);
     expect(sheets.Logs._getRawValues()).toHaveLength(3);
     expect(sheets.Logs._getRawValues()[2][4]).toBe('');
-    expect(JSON.parse(sheets.Logs._getRawValues()[2][5])).toEqual({ etapa: 'VALIDACION' });
+    expect(sheets.Logs._getRawValues()[2][5]).toBe('Solicitud rechazada.');
+    expect(JSON.parse(sheets.Logs._getRawValues()[2][6])).toEqual({ etapa: 'VALIDACION' });
   });
 
   test('limita el contexto a un objeto JSON pequeño', function () {

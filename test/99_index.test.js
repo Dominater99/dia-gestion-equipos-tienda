@@ -13,14 +13,6 @@ const html = fragmentNames.reduce(function (assembled, name) {
 }, templateHtml);
 
 describe('99_index - contrato visual y accesible', function () {
-  beforeEach(function () { resetMockSheets({ Sistema: [['clave', 'valor']] }); });
-  test('una foto opcional inválida impide enviar hasta corregir o retirar la selección', function () {
-    const source = html.match(/function getFieldErrorMessage\(definition, control\) \{([\s\S]*?)\n {4}\}/);
-    const validate = new Function('return function(definition,control){' + source[1] + '}')();
-    expect(validate({ type: 'photo', required: false }, { dataset: { photoError: 'Foto inválida' } })).toBe('Foto inválida');
-    expect(validate({ type: 'photo', required: false }, { dataset: {} })).toBe('');
-    expect(validate({ type: 'photo', required: true }, { dataset: {} })).toMatch(/obligatorio/);
-  });
   test('compone estilos y scripts locales en orden, sin build ni dist', function () {
     expect(templateHtml).toContain('<?= applicationTimeZone ?>');
     expect(templateHtml.match(/createHtmlOutputFromFile/g)).toHaveLength(fragmentNames.length);
@@ -117,17 +109,28 @@ describe('99_index - contrato visual y accesible', function () {
     expect(html).toContain('control._resolveStore();');
     expect(html).toContain('forgetPreselectedStore_();');
     expect(html).toContain('control.maxLength = FORM_RULES.commentMaxLength');
-    expect(html).toContain('element.formFields');
+    expect(html).toContain('appState.uiText.commentsHint');
     expect(UI_TEXT_DEFAULTS.COMMENTS_HINT).toContain('se enviará directamente al proveedor');
     expect(html).toContain('className = \'modification-store-card\'');
     expect(html).toContain('--color-store-card: #b8191c');
     expect(html).toContain('renderStoreCard(card, result.store)');
     expect(html).toContain('inputRow.hidden = true');
-    expect(html).not.toContain("management === 'NUEVA_SOLICITUD'");
-    expect(html).toContain('appState.uiText.coverageAppUrl');
+    expect(html).toContain("management === 'NUEVA_SOLICITUD'");
+    expect(html).toContain("field('fechaMaximaRetirada', 'Fecha máxima de retirada', 'date', false)");
+    expect(html).toContain("element.equipo === 'LOCKER'");
+    expect(html).toContain("field('enchufeDisponible', '¿Enchufe disponible?', 'yes-no', true)");
+    expect(html).toContain("field('tomaAguaDisponible', '¿Toma de agua disponible?', 'yes-no', true)");
+    expect(html).toContain("element.equipo === 'LOCKER'");
+    expect(html).toContain("field('fotoHorario', 'Foto horario', 'photo', true");
+    expect(html).toContain("field('fotoCobertura', 'Foto cobertura', 'photo', true");
+    expect(html).toContain("'Consulta la cobertura en ' + coverageAppUrl");
+    expect(html).toContain("const coverageAppUrl = appState.uiText.coverageAppUrl || 'www.dia.es';");
+    expect(html).toContain("field('fotoUbicacion', 'Foto ubicación', 'photo', true");
+    expect(html).toContain("field('fotoLayout', 'Foto layout', 'photo', true");
     expect(html).toContain("['SI', 'NO'].forEach(function (choice)");
     expect(html).toContain('choice-group__option--selected');
-    expect(html).toContain("radio.type = 'radio'");
+    expect(html).toContain("management === 'ERROR_PANTALLA' && element.equipo === 'CAFETERA'");
+    expect(html).toContain("field('foto', 'Foto', 'photo', true");
     expect(html).toContain("control.accept = 'image/jpeg,image/png,.jpeg,.jpg,.png'");
     expect(html).toContain("event.clipboardData && event.clipboardData.files");
     expect(html).toContain("event.dataTransfer && event.dataTransfer.files");
@@ -145,7 +148,7 @@ describe('99_index - contrato visual y accesible', function () {
     expect(html).toContain('Te recordamos que el procedimiento habitual es reclamarlo a través de ServiceNow.');
     expect(html).toContain('showServiceNowInfo();');
     expect(html).toContain("counter.textContent = '0 / ' + FORM_RULES.commentMaxLength");
-    expect(html).toContain('pendingRequirements');
+    expect(html).toContain('button.disabled = !getFormFieldDefinitions');
     expect(html).toContain('control.value = normalizeCommentText(control.value)');
     expect(html).toContain("console.error('Falló la llamada a submitRequest.', error)");
     expect(html).toContain('appState.uiText.submissionTransportFailure');

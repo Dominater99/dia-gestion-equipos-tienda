@@ -35,23 +35,12 @@ function checkAccess() {
     return {
       authorized: false,
       email: email,
-      adminEmail: isTestEnvironment_() ? testRecipient_() : systemParams[SYSTEM_PARAM_KEYS.ADMIN_EMAIL] || '',
+      adminEmail: systemParams[SYSTEM_PARAM_KEYS.ADMIN_EMAIL] || '',
       accessRequestSubject: MAIL_DEFAULTS.ACCESS_REQUEST_SUBJECT.replace(/[\r\n]+/g, ' '),
       accessRequestBody: MAIL_DEFAULTS.ACCESS_REQUEST_BODY.replace(/{{email}}/g, email)
     };
   }
 
-  let elements;
-  try {
-    elements = getActiveElementsForUser_(currentUser, cacheConfig).map(publicElement_);
-  } catch (error) {
-    if (!error || !error.isPublic) throw error;
-    return {
-      authorized: false, configurationError: true,
-      message: String(currentUser.rol).toUpperCase() === ROLES.ADMINISTRADOR
-        ? error.message : 'La configuración de las peticiones necesita revisión. Contacta con soporte.'
-    };
-  }
   return {
     authorized: true,
     user: {
@@ -68,7 +57,7 @@ function checkAccess() {
       ),
       submissionTransportFailure: UI_TEXT_DEFAULTS.SUBMISSION_TRANSPORT_FAILURE
     },
-    elements: elements
+    elements: getActiveElements_(cacheConfig)
   };
 }
 
