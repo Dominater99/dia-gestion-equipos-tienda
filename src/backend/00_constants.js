@@ -5,8 +5,8 @@
  * Los proveedores y las combinaciones equipo/proveedor/gestión concretas ya
  * NO viven aquí: se leen en tiempo real de la pestaña Elementos (ver
  * 21_element_service.js), para poder añadir o desactivar opciones sin tocar
- * código. Lo que sí sigue fijo en código es el conjunto de "tipo_gestion"
- * posibles, porque cada uno dibuja un formulario distinto.
+ * código. Los tipos de gestión definen invariantes; los campos se resuelven
+ * desde Campos_peticion mediante el catálogo técnico compartido.
  */
 
 const APP_METADATA = Object.freeze({
@@ -25,7 +25,8 @@ const SHEET_NAMES = {
   PARAMETROS_DELEGACION: 'Parametros_delegacion',
   REGISTROS: 'Registros',
   LOGS: 'Logs',
-  ELEMENTOS: 'Elementos'
+  ELEMENTOS: 'Elementos',
+  CAMPOS_PETICION: 'Campos_peticion'
 };
 
 const LOG_EVENTS = Object.freeze({
@@ -50,7 +51,7 @@ const RATE_LIMIT_CLEANUP = Object.freeze({
 });
 
 const SUBMISSION_RATE_LIMIT = Object.freeze({
-  // Valores de compatibilidad para ventanas ya abiertas antes de parametrizar Sistema.
+  // Política técnica versionada; las ventanas persistidas se respetan hasta que vencen.
   MAX_ATTEMPTS: 10,
   WINDOW_MS: 10 * 60 * 1000,
   PROPERTY_PREFIX: 'limite_envios_usuario:',
@@ -71,9 +72,10 @@ const READ_RATE_LIMIT = Object.freeze({
 
 const SCRIPT_LOCK_WAIT_MS = 10000;
 
-function publicError_(message) {
+function publicError_(message, reason) {
   const error = new Error(message);
   error.isPublic = true;
+  error.reason = reason || 'VALIDACION_RECHAZADA';
   return error;
 }
 
@@ -86,6 +88,7 @@ const ROLES = {
   GESTOR_GLOBAL: 'GESTOR_GLOBAL',
   ADMINISTRADOR: 'ADMINISTRADOR'
 };
+const ELEMENT_VISIBILITY_ALL = 'TODOS';
 
 const EQUIPOS = {
   NEVERA: 'NEVERA',
@@ -176,6 +179,7 @@ const SYSTEM_PARAM_KEYS = {
   MAIL_SUBJECT: 'ASUNTO_EMAIL',
   LEGACY_MAIL_SUBJECT: 'ASUNTO_EMAL',
   COVERAGE_APP_URL: 'URL_APP_COBERTURA',
+  LOGO_URL: 'LOGO_URL',
   DAILY_USER_REQUEST_LIMIT: 'LIMITE_REGISTROS_DIARIOS_USUARIO',
   SUBMISSION_ATTEMPTS_LIMIT: 'LIMITE_INTENTOS_REGISTRO_VENTANA',
   SUBMISSION_WINDOW_SECONDS: 'VENTANA_INTENTOS_REGISTRO_SEGUNDOS',
@@ -199,8 +203,17 @@ const CACHE_KEYS = Object.freeze({
   USERS: 'solicitudes:usuarios',
   ELEMENTS: 'solicitudes:elementos',
   STORES: 'solicitudes:tiendas',
-  DELEGATION_CONTACTS: 'solicitudes:parametros_delegacion'
+  DELEGATION_CONTACTS: 'solicitudes:parametros_delegacion',
+  FORM_FIELDS: 'solicitudes:campos_peticion'
 });
+
+const REGISTRO_COLUMNS = Object.freeze([
+  'id_peticion', 'timestamp_registro', 'email_usuario', 'nombre_usuario', 'delegacion_usuario',
+  'id_elemento', 'etiqueta_elemento', 'equipo', 'proveedor', 'tipo_gestion', 'subtipo',
+  'tienda', 'tienda_origen', 'tienda_destino', 'fecha_limite_recogida', 'fecha_inicio',
+  'fecha_fin', 'fecha_maxima_retirada', 'necesita_codigo_servicenow', 'codigo_servicenow',
+  'comentarios', 'enchufe_disponible', 'toma_agua_disponible'
+]);
 
 const STORE_COLUMNS = Object.freeze([
   'apnut', 'tienda_id', 'delegacion_desc', 'planograma_desc',
@@ -241,6 +254,7 @@ if (typeof module !== 'undefined') {
     publicError_,
     publicErrorMessage_,
     ROLES,
+    ELEMENT_VISIBILITY_ALL,
     EQUIPOS,
     TIPOS_GESTION,
     SERVICENOW_PATTERN,
@@ -265,6 +279,7 @@ if (typeof module !== 'undefined') {
     SCRIPT_PROPERTY_KEYS,
     CACHE_DEFAULTS,
     CACHE_KEYS,
+    REGISTRO_COLUMNS,
     STORE_COLUMNS,
     DELEGATION_CONTACT_COLUMNS,
     ESTADO_TIENDA,

@@ -1,4 +1,28 @@
 describe('20_config_service', function () {
+  test('lee clave y valor por cabecera aunque haya metadatos y las columnas cambien de orden', function () {
+    resetMockSheets({ Sistema: [
+      ['categoria', 'valor', 'descripcion', 'clave'], ['Identidad visual', BRAND_ASSETS.LOGO_URL, 'Logo', 'LOGO_URL']
+    ] });
+    expect(getSystemParams_().LOGO_URL).toBe(BRAND_ASSETS.LOGO_URL);
+    setSystemParam_('LOGO_URL', 'https://www.dia.es/otro-logo.svg');
+    expect(getSystemParams_().LOGO_URL).toBe('https://www.dia.es/otro-logo.svg');
+  });
+
+  test('rechaza claves duplicadas y cabeceras sin clave o valor', function () {
+    resetMockSheets({ Sistema: [['clave', 'valor'], ['LOGO_URL', 'uno'], [' LOGO_URL ', 'dos']] });
+    expect(function () { getSystemParams_(); }).toThrow(/duplicada/);
+    resetMockSheets({ Sistema: [['nombre', 'dato']] });
+    expect(function () { getSystemParams_(); }).toThrow(/clave y valor/);
+  });
+
+  test('valida el origen y HTTPS del logo compartido por web y correo', function () {
+    expect(resolveLogoUrl_({})).toBe(BRAND_ASSETS.LOGO_URL);
+    expect(resolveLogoUrl_({ LOGO_URL: 'https://www.dia.es/nuevo.svg' })).toBe('https://www.dia.es/nuevo.svg');
+    ['http://www.dia.es/logo.svg', 'https://www.dia.es.ejemplo.com/logo.svg', 'javascript:alert(1)',
+      'https://www.dia.es/logo.svg" onerror="alert(1)'].forEach(function (url) {
+      expect(function () { resolveLogoUrl_({ LOGO_URL: url }); }).toThrow(/LOGO_URL/);
+    });
+  });
   test('getSystemParams_ lee los pares parametro/valor de la pestaña Sistema', function () {
     resetMockSheets({
       Sistema: [

@@ -8,9 +8,9 @@
  */
 function doGet() {
   const template = HtmlService.createTemplateFromFile('frontend/99_index');
-  template.applicationName = APP_METADATA.NAME;
+  template.applicationName = APP_METADATA.NAME + (isTestEnvironment_() ? ' · PRUEBAS' : '');
   template.applicationVersion = APP_METADATA.VERSION;
-  template.logoUrl = BRAND_ASSETS.LOGO_URL;
+  template.logoUrl = resolveLogoUrl_(getSystemParams_());
   template.applicationTimeZone = Session.getScriptTimeZone();
   template.commentMaxLength = MAX_COMMENT_LENGTH;
   template.commentMaxLengthDisplay = formatCount_(MAX_COMMENT_LENGTH);
@@ -21,7 +21,7 @@ function doGet() {
   template.serviceNowDigits = SERVICE_NOW_DIGITS;
 
   return template.evaluate()
-    .setTitle(APP_METADATA.NAME)
+    .setTitle(template.applicationName)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 

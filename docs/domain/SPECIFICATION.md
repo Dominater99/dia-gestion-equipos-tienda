@@ -37,9 +37,9 @@ El flujo es:
 7. generar un identificador, escribir una fila en `Registros` y enviar la confirmación;
 8. volver al inicio después de una alta correcta.
 
-Quedan fuera de alcance adjuntos, aprobación, seguimiento, edición, cancelación, histórico,
-estadísticas, exportaciones, administración desde la web y APIs HTTP entrantes, salvo una única
-foto obligatoria en la opción `Error en pantalla` de Cafetera, que se adjunta directamente al correo.
+Quedan fuera de alcance aprobación, seguimiento, edición, cancelación, histórico,
+estadísticas, exportaciones, administración desde la web y APIs HTTP entrantes. Se admiten
+los campos de foto del catálogo técnico: sus imágenes se adjuntan al correo sin persistirlas.
 
 ## 3. Plataforma
 
@@ -64,6 +64,7 @@ src/
   appsscript.json         manifiesto
   backend/
     00_constants.js       contratos y valores cerrados
+    01_environment.js     selección fija de pestañas y correo por paquete
     10_sheet_gateway.js   adaptador común de Sheets
     20_config_service.js  configuración de Sistema
     21_element_service.js catálogo configurable
@@ -71,6 +72,7 @@ src/
     23_log_service.js     auditoría operativa mínima
     24_rate_limit_service.js protección de intentos por cuenta
     25_delegation_service.js contactos configurados por delegación
+    26_form_schema_service.js esquema de captura y validación de configuración
     30_auth_service.js    identidad y acceso
     31_mail_service.js    confirmaciones
     32_request_service.js caso de uso de alta
@@ -96,7 +98,8 @@ en orden con `HtmlService.createHtmlOutputFromFile()`. `clasp push` no requiere 
 
 ## 5. Datos
 
-La hoja activa contiene siete pestañas: seis de operación y `Logs` para auditoría mínima.
+El contrato migrado utiliza ocho pestañas: siete de operación y `Logs` para auditoría mínima.
+En el entorno de pruebas sus nombres llevan el prefijo `TEST_`.
 
 ### 5.1. `Usuarios`
 
@@ -152,7 +155,7 @@ Cabeceras:
 
 ```text
 id_elemento, equipo, proveedor, tipo_gestion, subtipo, etiqueta, estado,
-requiere_service_now, solo_tiendas_abiertas, email_copia, email_destino, mensaje_email, orden
+requiere_service_now, solo_tiendas_abiertas, email_copia, email_destino, mensaje_email, orden, rol_visible
 ```
 
 Contratos:
@@ -166,6 +169,25 @@ Contratos:
 - `email_destino` define uno o varios destinatarios principales separados por comas cuando tiene valor;
 - `mensaje_email` es obligatorio y contiene el cuerpo literal del correo de registro para esa opción;
 - `proveedor` y `subtipo` pueden quedar vacíos.
+
+`rol_visible` admite `TODOS`, `ADMINISTRADOR`, `GESTOR_GLOBAL` o `GESTOR_DELEGACION`.
+La columna ausente o vacía equivale a `TODOS`, siempre dentro de los usuarios autorizados.
+Un rol concreto permite únicamente ese rol, sin privilegio implícito del administrador ni listas
+de varios roles. Se normalizan espacios externos y mayúsculas; cualquier otro valor produce un
+error de configuración. Se aplica a cualquier gestión, incluidos los movimientos: filtra el menú
+y se comprueba de nuevo en servidor antes de consultar tiendas, devolver un formulario actualizado
+o registrar. El rol se obtiene de Usuarios; nunca del formulario. El catálogo en caché se comparte,
+pero el filtrado se calcula para cada usuario. Los cambios se aplican al vencer el TTL corto;
+recargar la web actualiza las opciones visibles. No se revocan permisos antes de vencer esa caché.
+La preparación de pruebas añade esta columna con desplegable solo en `TEST_Elementos`, inicialmente
+con `TODOS` en las opciones existentes. La pestaña de producción se conserva.
+
+En libros migrados, `requiere_service_now` es una columna heredada: el estado del campo
+`codigo_servicenow` en `Campos_peticion` determina si aparece y si es obligatorio. El servidor
+deriva el valor efectivo para el histórico. No se mantiene una segunda regla editable.
+El catálogo rechaza IDs vacíos o duplicados, equipos, gestiones o estados desconocidos y valores
+distintos de SI/NO en los indicadores. Una opción inactiva puede prepararse antes de añadir sus
+campos; una activa sin configuración completa produce un error de configuración.
 
 Además de las columnas de `Elementos` y `Registros`, `mensaje_email` admite los marcadores
 `{{delegacion_contacto}}`, `{{delegacion_email_contacto}}` y `{{delegacion_tlf_contacto}}`.
@@ -210,7 +232,7 @@ solicitud antes de registrarla. Sus valores se incorporan solo al correo y no se
 Cabeceras:
 
 ```text
-clave, valor
+clave, valor, categoria, descripcion
 ```
 
 | Parámetro | Valor inicial | Uso |
@@ -225,11 +247,7 @@ clave, valor
 | `ASUNTO_EMAIL` | `[Gestión equipos]-{{equipo}}-{{tipo_gestion}}- {{tienda}}-{{provincia}}-{{municipio}}-{{direccion}}` | Plantilla del asunto. Durante la transición se acepta `ASUNTO_EMAL` si no existe esta clave. |
 | `URL_APP_COBERTURA` | `www.dia.es` | Texto de ayuda que se muestra bajo Foto cobertura en Nueva solicitud de Locker. |
 | `LIMITE_REGISTROS_DIARIOS_USUARIO` | `10` | Máximo de registros guardados por usuario y día de `Europe/Madrid`; entero positivo ampliable. |
-| `LIMITE_INTENTOS_REGISTRO_VENTANA` | `10` | Máximo de intentos de alta por usuario en cada ventana. |
-| `VENTANA_INTENTOS_REGISTRO_SEGUNDOS` | `600` | Duración de la ventana de intentos de alta. |
-| `LIMITE_CONSULTAS_ACCESO_VENTANA` | `30` | Máximo de comprobaciones de acceso por usuario. |
-| `LIMITE_CONSULTAS_TIENDA_VENTANA` | `60` | Máximo de búsquedas de tienda por usuario. |
-| `VENTANA_CONSULTAS_SEGUNDOS` | `600` | Duración compartida de las ventanas de acceso y tienda. |
+| `LOGO_URL` | Logo oficial DIA | Logo compartido por web y correo. HTTPS en `www.dia.es`; vacío utiliza el valor oficial del código. |
 
 `Sistema` se crea y mantiene manualmente; la aplicación no dispone de `setupSistema` ni añade
 parámetros ausentes. Nombre y versión de la aplicación viven solo en `APP_METADATA`, no en esta
@@ -241,7 +259,11 @@ se aplican `TRUE`, 5 y 100 segundos como valores predeterminados. La caché de s
 maestros reconstruibles, por fragmentos, no credenciales, y la configuración se invalida al
 escribirla desde el código; las ediciones manuales surten efecto tras el TTL vigente.
 Los fragmentos se leen, escriben y eliminan con operaciones por lotes de `CacheService`.
-La cabecera debe ser `clave, valor`; ya no se corrige automáticamente una cabecera heredada.
+La lectura identifica `clave` y `valor` por cabecera; acepta el nombre heredado `parametro`.
+`categoria` y `descripcion` son ayudas de mantenimiento, no reglas ejecutables. Se rechazan claves
+duplicadas. `SYSTEM_PARAM_METADATA` mantiene sus descripciones canónicas. Los cinco parámetros
+de protección por ventanas se retiran de Sistema: los valores efectivos viven en constantes
+versionadas y las filas heredadas, si existen, se ignoran. El cupo diario sigue siendo funcional.
 
 ### 5.6. `Registros`
 
@@ -264,12 +286,13 @@ por compatibilidad con registros históricos. El texto que comienza por `=`, `+`
 una instantánea histórica deliberada, aunque el maestro `Elementos` cambie después.
 El servidor descarta tiendas, fechas, códigos ServiceNow, disponibilidades y fotos no aplicables
 aunque el navegador los envíe; solo se persisten los campos correspondientes al elemento seleccionado.
-`enchufe_disponible` y `toma_agua_disponible` contienen `SI` o `NO` solo en `NUEVA_SOLICITUD` de
-Cafetera; las fotos nunca se escriben en `Registros`. Antes de habilitar esa gestión en una hoja
+`enchufe_disponible` y `toma_agua_disponible` contienen `SI` o `NO` cuando el campo está visible y
+se rellena según el esquema de la petición; las fotos nunca se escriben en `Registros`. Antes de habilitar esa gestión en una hoja
 existente se añaden ambas cabeceras al final de `Registros`; si faltan, el servidor rechaza el alta
 antes de asignar ID, escribir una fila o enviar correo.
 `Registros` se prepara manualmente; si falta o no tiene las columnas obligatorias, no se registra
-la solicitud. Las antiguas `clave_idempotencia` y `huella_solicitud` ya no se crean ni se usan;
+la solicitud. Se comprueban las 23 columnas del contrato antes de asignar ID o escribir: ningún
+campo se puede perder silenciosamente por una cabecera incompleta. Las antiguas `clave_idempotencia` y `huella_solicitud` ya no se crean ni se usan;
 si siguen presentes, las nuevas filas las dejan vacías. No se eliminan datos automáticamente.
 
 ### 5.7. `Logs`
@@ -277,7 +300,7 @@ si siguen presentes, las nuevas filas las dejan vacías. No se eliminan datos au
 Cabeceras, en orden:
 
 ```text
-fecha, nivel, evento, email, id_solicitud, mensaje, contexto
+fecha, nivel, evento, email, id_solicitud, contexto
 ```
 
 La aplicación añade un evento por intento de alta aceptado por el limitador:
@@ -286,10 +309,14 @@ solo el primer intento bloqueado de cada ventana añade `LIMITE_ENVIOS_EXCEDIDO`
 no escriben en la hoja para evitar amplificación. Un estado corrupto del limitador de envíos
 añade `ESTADO_LIMITE_INVALIDO`; solo si ese evento queda registrado se elimina el valor corrupto
 observado para que el siguiente intento pueda abrir una ventana nueva. `email` identifica al solicitante;
-`id_solicitud` contiene el ID si llegó a generarse y `mensaje` es un texto fijo por evento.
+`id_solicitud` contiene el ID si llegó a generarse. El esquema nuevo elimina `mensaje`, que era
+una descripción fija del evento. El logger también admite el esquema anterior de siete columnas,
+sin modificar su cabecera ni su histórico.
 `contexto` es un objeto JSON de hasta 1.000 caracteres con `etapa` y, cuando ya se ha resuelto el
 elemento, `idElemento`, `equipo`, `proveedor`, `tipoGestion` y `subtipo`; los valores vacíos se
-omiten. En registros completados incluye `notificacionEnviada`. No se guardan excepciones,
+omiten. En registros completados incluye `notificacionEnviada`; en rechazos y fallos de correo
+incluye un `motivo` estable, por ejemplo `FECHA_NO_FUTURA`, `CAMPO_REQUERIDO`,
+`CONFIGURACION_INVALIDA`, `FORMULARIO_ACTUALIZADO` o `ENVIO_CORREO_FALLIDO`. No se guardan excepciones,
 tienda, comentarios, fechas, códigos ServiceNow, asunto ni destinatarios. Si falta la pestaña, el
 primer evento la crea bajo `LockService`.
 Un fallo del logger se comunica en la consola con un mensaje estático y no cambia el resultado
@@ -303,6 +330,48 @@ una excepción técnica en consola. Si la llamada ni siquiera llega al servidor,
 registra el fallo de `google.script.run` en su propia consola.
 
 ## 6. Reglas del formulario
+
+### 6.1. Campos por petición
+
+`Campos_peticion` utiliza las columnas `id_elemento, campo, estado, orden, etiqueta, ayuda`.
+Una fila identifica un campo de una opción, sin repetir la pareja `id_elemento, campo`.
+`estado` admite `OCULTO`, `OPCIONAL` y `OBLIGATORIO`; `orden` es un entero no negativo.
+Etiqueta y ayuda admiten hasta 150 y 500 caracteres; vacías recuperan los textos del catálogo.
+Una fila ausente no muestra el campo. Para facilitar mantenimiento, la migración genera los
+quince campos conocidos por opción, incluidos los ocultos.
+
+| Campo | Tipo | Destino |
+|---|---|---|
+| `tienda`, `tienda_origen`, `tienda_destino` | Tienda validada | Columna correspondiente de Registros |
+| `fecha_inicio`, `fecha_fin`, `fecha_maxima_retirada` | Fecha futura | Columna correspondiente de Registros |
+| `codigo_servicenow` | Código TASK | `codigo_servicenow` |
+| `enchufe_disponible`, `toma_agua_disponible` | SI/NO | Columna correspondiente de Registros |
+| `comentarios` | Texto | `comentarios` |
+| `foto`, `foto_horario`, `foto_cobertura`, `foto_ubicacion`, `foto_layout` | Imagen JPEG o PNG | Adjunto temporal del correo |
+
+Los campos ocultos y cualquier propiedad interna aportada por el navegador se descartan en
+servidor. Los opcionales se validan si tienen valor. Se puede reutilizar cualquier campo del
+catálogo en una opción existente sin cambiar código; un componente nuevo o una semántica de
+gestión nueva requiere implementación. No se ejecutan fórmulas ni JSON introducidos como reglas.
+
+Las tiendas son invariantes: MOVIMIENTO requiere origen y destino distintos y no utiliza tienda
+única; el resto requiere una tienda única. DESCONEXION_TEMPORAL requiere inicio y fin. Si ambos
+extremos de cualquier periodo tienen valor, fin no puede ser anterior a inicio; se admite un
+periodo que empiece y termine el mismo día, siempre futuro.
+
+El servidor resuelve el esquema para menú, validación y normalización. El navegador recibe solo
+los datos de presentación, `formFields` y `formRevision`, sin destinatarios ni cuerpo de correo.
+Al registrar un libro migrado debe presentar la revisión recibida: si cambió, se rechaza antes de
+asignar ID y se devuelve el esquema actualizado. La interfaz conserva los datos todavía aplicables
+y solicita confirmar de nuevo tiendas y código. Las ediciones manuales se reflejan tras el TTL.
+En TEST la pestaña es obligatoria. La ausencia de Campos_peticion en un libro aún no migrado
+mantiene los valores iniciales anteriores; no se utiliza este mecanismo para ocultar errores de
+una pestaña existente mal formada.
+
+### 6.2. Valores iniciales y validadores
+
+La tabla siguiente describe la configuración inicial reproducida por la migración. Después,
+`Campos_peticion` es la fuente de visibilidad y obligatoriedad, respetando las invariantes anteriores.
 
 | Gestión | Campos obligatorios | Campos condicionales |
 |---|---|---|
@@ -325,10 +394,10 @@ El botón «Introducir» (o Intro) confirma visualmente el código antes de habi
 Tras confirmar un código válido, la interfaz muestra el aviso: «Te recordamos que el procedimiento
 habitual es reclamarlo a través de ServiceNow. Prosiga solo con esta petición en caso de haberlo
 reclamado y no haya recibido respuesta.» Cerrar el aviso conserva el código confirmado.
-El cliente impide habilitar «Registrar solicitud» hasta confirmar un código válido; el servidor
-rechaza cualquier código no vacío que no cumpla el patrón, aunque la fila no lo exija, antes de
+El cliente impide habilitar «Registrar solicitud» hasta confirmar un código visible con valor;
+el servidor lo valida aunque sea opcional. Un código oculto se descarta antes de validar,
 generar el ID o escribir el registro.
-`Comentarios` es siempre obligatorio, con un máximo de 2.000 caracteres verificado en cliente y
+`Comentarios` es obligatorio en la configuración inicial, con un máximo de 2.000 caracteres verificado en cliente y
 servidor. Bajo el título aparece: «Por favor, redacta correctamente el contenido, ya que se
 enviará directamente al proveedor», con un contador `N / 2000` a su derecha. El aviso es texto
 fijo de la aplicación. Antes de guardar
@@ -349,7 +418,12 @@ ubicación y Foto layout. Foto cobertura muestra como ayuda el valor de `URL_APP
 servidor repite el límite y comprueba la firma binaria de JPEG o PNG antes de registrar.
 
 «Registrar solicitud» permanece desactivado hasta que todos los campos requeridos sean válidos
-y las tiendas y el código ServiceNow se hayan confirmado.
+y las tiendas y el código ServiceNow, cuando aparece, se hayan confirmado. Junto al botón se
+indican los requisitos pendientes con acciones para enfocar cada control. Los selectores SI/NO
+usan radios nativos estilizados, compatibles con flechas del teclado. Volver conserva en memoria
+el borrador de la opción, incluidas las fotos; un alta correcta descarta ese borrador. No se
+guardan borradores en localStorage, caché o Drive. Las opciones generales siguen accesibles cuando
+conviven con proveedores y se omite el paso de proveedor cuando solo existe una alternativa.
 
 La interfaz valida para ayudar al usuario; el servidor repite autorización, disponibilidad del
 elemento, campos, código ServiceNow, comentarios y ámbito de tienda. Los datos descriptivos del elemento nunca
@@ -377,7 +451,7 @@ la respuesta a fallo de alta: se devuelve `success=true`, `notificationSent=fals
 ve que el registro se guardó sin confirmación. Así se evita inducir un reintento por un efecto ya
 persistido.
 
-Al abrir una ventana, el limitador lee `Sistema` bajo bloqueo y guarda el umbral y la duración
+Al abrir una ventana, el limitador lee `Sistema` bajo bloqueo para el resto del flujo y guarda el umbral y la duración técnicos
 en su estado de Script Properties. Esa lectura se reutiliza en el resto del flujo. Los intentos
 posteriores de la misma ventana usan ese estado; los bloqueados no leen hojas ni escriben
 registros o correos.
@@ -400,10 +474,9 @@ reintento.
 independientes de diez minutos, también mediante Script Properties con email seudonimizado y bloqueo. Son
 límites de lectura, separados del cupo de altas y del limitador de intentos de registro;
 se aplican antes de leer usuarios, elementos o tiendas. Los estados vencidos se limpian de forma
-oportunista. Los cinco umbrales operativos están en `Sistema` y deben ser enteros positivos;
-un valor inválido deniega la operación. Una edición manual surte efecto al comenzar la siguiente
-ventana, no a mitad de una ya abierta. Las constantes conservan solo valores iniciales y
-compatibilidad con estados legados.
+oportunista. Los cinco umbrales técnicos se definen en `SUBMISSION_RATE_LIMIT` y `READ_RATE_LIMIT`,
+no en Sistema. Una ventana abierta conserva su umbral y duración persistidos hasta que vence;
+las ventanas nuevas aplican las constantes de la versión ejecutada.
 
 ## 8. Correo
 
@@ -412,7 +485,8 @@ direcciones separadas por comas. Si está vacío, el destinatario principal es e
 Las copias son:
 
 1. `EMAIL_CC_SOPORTE`, o su valor predeterminado;
-2. el email autenticado de quien registra.
+2. `email_copia` del elemento, cuando existe;
+3. el email autenticado de quien registra.
 
 `EMAIL_CC_SOPORTE` y `email_destino` admiten una o varias direcciones sintácticamente válidas
 separadas por comas; se rechazan elementos vacíos, punto y coma y saltos de línea. Cada dirección de
@@ -438,9 +512,11 @@ cualquier columna de la fila seleccionada de `Elementos` y de la fila creada en 
 ejemplo, `{{proveedor}}`, `{{tienda_origen}}`, `{{codigo_servicenow}}`, `{{enchufe_disponible}}` o
 `{{comentarios}}`. La sustitución de `{{comentarios}}` se muestra entre comillas y en cursiva en la versión HTML. La instantánea de `Registros` tiene prioridad sobre `Elementos` cuando coinciden
 los nombres. Se conserva `{{tienda_id}}` como alias del identificador validado de la tienda. Una
-variable desconocida o mal formada rechaza la solicitud. El HTML conserva los saltos de línea y escapa el texto para impedir que
+variable desconocida o mal formada en la plantilla rechaza la solicitud. Los valores sustituidos,
+incluidas sus llaves literales, no se reinterpretan como marcadores. El HTML conserva los saltos de línea y escapa el texto para impedir que
 una celda ejecute etiquetas. La tarjeta conserva la cabecera DIA y el estado de alta,
-con el logo oficial desde `https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg`. No incluye el botón «Abrir la aplicación», enlaces, otros recursos remotos
+con el logo resuelto desde `LOGO_URL`, cuyo valor predeterminado es
+`https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg`. No incluye el botón «Abrir la aplicación», enlaces, otros recursos remotos
 ni datos de otras solicitudes. Si `mensaje_email` está vacío, la solicitud se rechaza antes de generar
 ID, escribir en `Registros` o enviar una notificación. Para `ERROR_PANTALLA` de Cafetera incorpora la foto validada como
 un adjunto binario, con nombre `foto-<id_peticion>.jpg` o `.png`. Para `NUEVA_SOLICITUD` de
@@ -449,9 +525,9 @@ Cafetera adjunta Foto ubicación y Foto layout como `foto-ubicacion-<id_peticion
 `foto-horario-<id_peticion>`, `foto-cobertura-<id_peticion>`, `foto-ubicacion-<id_peticion>` y
 `foto-layout-<id_peticion>`, con su extensión. No crea archivos de Drive ni incluye enlaces. Solo se
 muestran campos con valor; el HTML escapa los datos y conserva los saltos
-de línea en Comentarios. El saludo, la frase principal y el cierre son textos fijos de la aplicación;
-incorporan el nombre del usuario y el identificador de la solicitud. El asunto y el cuerpo de la
-solicitud de acceso también son fijos e incorporan el email de la cuenta.
+de línea en Comentarios. El saludo y el cierre, si se desean, se incluyen en mensaje_email;
+no se añade texto al cuerpo literal de la opción. El asunto y el cuerpo de la solicitud de acceso
+son fijos e incorporan el email de la cuenta.
 
 ## 9. Interfaces públicas
 
@@ -492,7 +568,7 @@ su base accesible. `00_styles.html` contiene la adaptación visual de este proye
 | Radio de tarjeta | `.75rem` |
 
 La cabecera es blanca, compacta y fija; a la izquierda muestra sin enlace el logo DIA cargado
-desde `https://www.dia.es/content-manager/image/Logos_footer_header/web_logo.svg` y a la derecha muestra las iniciales de la persona autenticada. El footer muestra
+desde `LOGO_URL` de Sistema, con el logo oficial predeterminado, y a la derecha muestra las iniciales de la persona autenticada. El footer muestra
 `Gestión de equipos de tienda - 1.0.0`. El nombre y la versión proceden de `APP_METADATA`;
 no existe una clave `VERSION` en `Sistema`.
 Las iniciales se derivan del email cuando contiene nombre y apellido separados por coma,
@@ -551,6 +627,94 @@ Publicación:
 `clasp push` no crea ni actualiza por sí solo una versión desplegada. No se usan datos de
 producción ni se envían correos reales durante pruebas sin autorización.
 
+### 11.1. Pruebas con pestañas `TEST_` en el mismo libro
+
+La versión de producción permanece fijada a su despliegue. La versión de pruebas usa el mismo
+proyecto y libro, pero resuelve todas las pestañas mediante `TEST_`: `TEST_Sistema`,
+`TEST_Usuarios`, `TEST_Elementos`, `TEST_Parametros_delegacion`, `TEST_Tiendas`,
+`TEST_Registros`, `TEST_Logs` y `TEST_Campos_peticion`. Si falta una copia, no utiliza la pestaña original.
+Los maestros se duplican una vez, como instantánea; Registros y Logs se crean únicamente con
+cabeceras. No se sobrescriben copias de prueba existentes ni se elimina histórico.
+
+El entorno está fijado en `EXECUTION_CONFIG` dentro de cada versión, no en URL, Sistema ni una
+propiedad compartida. Las fuentes canónicas mantienen `PROD`; `npm run build:test` genera un
+paquete independiente bajo `.staging/` sustituyendo únicamente esa configuración por `TEST`.
+La configuración local `.test-environment.json`, excluida de Git, contiene `testEmail`,
+`productionDeploymentId`, `productionVersion` y, una vez creado, `testDeploymentId`.
+No se versionan el buzón real ni los identificadores de despliegue.
+
+En TEST todos los correos de confirmación se entregan exclusivamente a `testEmail`, sin CC/BCC,
+ignorando los destinatarios de la opción, soporte y solicitante. El asunto lleva `[PRUEBAS]`;
+la cabecera web y el título muestran PRUEBAS. Solicitar acceso también usa el buzón de pruebas.
+Un buzón de pruebas vacío o inválido impide el envío y nunca activa destinatarios de producción.
+
+Las claves de caché de TEST llevan `test:` para evitar que una entrada de producción sustituya
+las copias. Por decisión del responsable, durante esta prueba controlada se comparten el contador,
+los limitadores persistidos, el bloqueo y las cuotas: las pruebas pueden producir saltos de ID
+y consumir intentos. No se borran ni reinician esos estados al preparar el entorno.
+
+`npm run deploy:test -- --dry-run` ejecuta la comprobación local y genera el paquete sin red.
+`npm run deploy:test -- --stage-only` envía el paquete TEST y crea una versión inmutable sin
+crear ni actualizar despliegues. Registra `stagedTestVersion` en la configuración local. Si una
+versión anterior quedó pendiente, solo la sustituye tras comprobar que no está desplegada.
+`npm run deploy:test` comprueba primero que producción conserva la versión registrada y que el
+destino de pruebas, si existe, está identificado como tal. Después envía el paquete, crea una
+versión y crea o actualiza exclusivamente el despliegue TEST. Finalmente verifica que los otros
+despliegues versionados conservan su versión. No crea commits ni ejecuta git push.
+El código HEAD compartido queda en modo TEST; las versiones desplegadas anteriores no cambian.
+Si hay una publicación con resultado incierto, se revisa antes de reintentar.
+
+El comando general `npm run deploy` comprueba la unicidad del destino antes de enviar fuentes;
+con producción y pruebas simultáneas se detiene por ambigüedad. La promoción a producción se
+prepara por separado, manteniendo copia, validación y migración explícita de cualquier esquema.
+Para esta infraestructura no se añaden servicios, scopes, triggers ni endpoints públicos.
+
+Matriz mínima de verificación del aislamiento:
+
+| Riesgo | Comprobación local | Comprobación integrada |
+|---|---|---|
+| Escritura en originales | Alta completa con originales centinela; todas las búsquedas usan TEST_ | Comparar pestañas originales antes y después de la preparación |
+| Copia ausente | Error explícito sin recurrir a la original | Verificar las ocho pestañas TEST antes de publicar |
+| Destinatarios reales | Alta con proveedor, soporte y solicitante distintos del buzón; solo se entrega a testEmail | Correo real autorizado únicamente al buzón de pruebas |
+| Caché compartida | Una entrada PROD no reemplaza Sistema TEST; invalidar TEST conserva PROD | Editar únicamente las copias y esperar su TTL |
+| Despliegue equivocado | Rechazar versión PROD distinta y destino sin identificación TEST | Comparar IDs y versiones de despliegues antes y después |
+
+La comprobación visual, de identidad y del correo real se registra como integrada; los mocks
+locales no la sustituyen. El procedimiento y sus resultados se conservan en la entrega.
+
+### 11.2. Prueba funcional de la implementación migrada
+
+La preparación de TEST añade una tabla nativa `CamposPeticionesPrueba` en
+`TEST_Campos_peticion`, con desplegables de campo y estado y cabeceras con instrucciones.
+El plan local de datos se genera mediante `node scripts/plan-test-data.js` a partir de una
+instantánea privada bajo `.staging/`; ese comando no abre Google ni realiza escrituras remotas.
+No se repite una inicialización sobre configuraciones de prueba ya editadas.
+
+Para modificar una petición existente, filtrar por su `id_elemento`, cambiar estado, orden,
+etiqueta o ayuda, esperar el TTL corto y recargar la web. Para crear otra opción, añadirla primero
+INACTIVE en TEST_Elementos, copiar los campos de una opción compatible cambiando `id_elemento`,
+ajustar sus requisitos y finalmente activarla. Un campo o tipo técnico nuevo exige código.
+
+Prueba manual mínima tras crear la URL TEST con una cuenta del dominio propietario:
+
+1. comprobar el indicador PRUEBAS y un acceso permitido y otro denegado;
+   en `TEST_Elementos.rol_visible`, restringir una opción a un rol, esperar el TTL corto y
+   comprobar con dos usuarios de distinto rol que solo aparece y permite consultas y altas
+   al rol indicado; restaurar `TODOS` y verificar que vuelve a estar disponible;
+2. registrar una petición representativa y comprobar que solo crecen TEST_Registros y TEST_Logs;
+3. confirmar que el correo, con asunto PRUEBAS, llega solo al buzón privado configurado;
+4. cambiar Comentarios a OPCIONAL y una foto oculta a OPCIONAL en una petición de prueba:
+   verificar que vacíos se aceptan y que una imagen presente se valida y adjunta;
+5. probar etiqueta, ayuda y orden; ocultar un campo y verificar que no aparece ni se persiste;
+6. con un formulario abierto, cambiar un requisito, esperar el TTL y registrar: debe actualizar
+   el formulario conservando lo aplicable, sin crear ID ni registro;
+7. comprobar borrador al volver, navegación por teclado, periodos y motivos de rechazo.
+
+Los límites por cuenta continúan activos: estas operaciones consumen intentos y cupo diario.
+No se borran estados compartidos ni se envía una solicitud real a proveedores para probar.
+La promoción y los cambios de IDs duplicados de producción requieren una migración independiente:
+las correcciones de IDs realizadas en TEST no modifican filas ni históricos originales.
+
 ## 12. Seguridad, privacidad y limitaciones
 
 - La web app está limitada al dominio y cada mutación se autoriza en servidor.
@@ -571,8 +735,7 @@ producción ni se envían correos reales durante pruebas sin autorización.
   un fallo de transporte, la interfaz pide comprobar primero el correo de confirmación.
 - Los tres puntos públicos están limitados por usuario; quedan pendientes la prueba real de
   concurrencia, latencia y cuotas de Script Properties en sandbox.
-- Las fechas deben ser futuras, pero todavía no se exige que `fechaFin` sea posterior a
-  `fechaInicio` en una desconexión temporal.
+- Las fechas deben ser futuras y el fin de un periodo no puede ser anterior al inicio.
 - Se comprueba la sintaxis y unicidad de destinatarios, pero no se impone dominio corporativo a
   `email_destino` porque puede ser un proveedor externo; revisar operativamente su autorización.
 - La creación concurrente de `Logs` aún requiere
@@ -588,6 +751,7 @@ producción ni se envían correos reales durante pruebas sin autorización.
 | Hojas, columnas, roles y estados | `src/backend/00_constants.js`, `docs/domain/SPECIFICATION.md` |
 | Acceso y ámbito | `src/backend/30_auth_service.js`, `src/backend/22_store_service.js` |
 | Alta y correo | `src/backend/32_request_service.js`, `src/backend/31_mail_service.js` |
+| Captura por petición | `src/backend/26_form_schema_service.js`, `Campos_peticion` |
 | Auditoría | `src/backend/23_log_service.js` |
 | Diseño efectivo | `src/frontend/00_styles.html`, `src/frontend/99_index.html` |
 | Comportamiento cliente | `src/frontend/10_navigation.html`, `src/frontend/20_form.html`, `src/frontend/30_validation_submit.html` |

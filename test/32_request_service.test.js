@@ -3,7 +3,7 @@ describe('32_request_service - validateRequestPayload_', function () {
     const element = { tipo_gestion: 'MOVIMIENTO', equipo: 'CAFETERA', requiere_service_now: 'NO' };
     expect(function () {
       validateRequestPayload_(element, { tiendaOrigen: '0001' });
-    }).toThrow(/origen/);
+    }).toThrow(/destino/);
   });
 
   test('rechaza un movimiento entre la misma tienda aunque haya espacios', function () {
@@ -24,14 +24,14 @@ describe('32_request_service - validateRequestPayload_', function () {
     const element = { tipo_gestion: 'DESCONEXION_TEMPORAL', equipo: 'LOCKER', requiere_service_now: 'NO' };
     expect(function () {
       validateRequestPayload_(element, { tienda: '0001' });
-    }).toThrow(/fecha de inicio/);
+    }).toThrow(/fecha de inicio/i);
   });
 
   test('exige fecha máxima de retirada solo para Locker', function () {
     const elementLocker = { tipo_gestion: 'RETIRADA', equipo: EQUIPOS.LOCKER, requiere_service_now: 'NO' };
     expect(function () {
       validateRequestPayload_(elementLocker, { tienda: '0001', comentarios: 'Retirada solicitada.' });
-    }).toThrow(/fecha máxima/);
+    }).toThrow(/fecha máxima/i);
 
     const elementCafetera = { tipo_gestion: 'RETIRADA', equipo: EQUIPOS.CAFETERA, requiere_service_now: 'NO' };
     expect(function () {
@@ -104,13 +104,13 @@ describe('32_request_service - validateRequestPayload_', function () {
     });
   });
 
-  test('valida también un código enviado cuando el elemento no lo exige', function () {
+  test('descarta un código de ServiceNow oculto aunque el cliente lo envíe', function () {
     const element = { tipo_gestion: 'RETIRADA', equipo: 'CAFETERA', requiere_service_now: 'NO' };
     expect(function () {
       validateRequestPayload_(element, {
         tienda: '0001', codigoServiceNow: 'TASK123', comentarios: 'Retirada solicitada.'
       });
-    }).toThrow(/TASK seguido de 7 dígitos/);
+    }).not.toThrow();
     expect(function () {
       validateRequestPayload_(element, {
         tienda: '0001', codigoServiceNow: 'TASK1234567', comentarios: 'Retirada solicitada.'
@@ -208,10 +208,10 @@ describe('32_request_service - validateRequestPayload_', function () {
     expect(function () { validateRequestPayload_(element, Object.assign({}, payload)); }).not.toThrow();
     expect(function () {
       validateRequestPayload_(element, Object.assign({}, payload, { enchufeDisponible: '' }));
-    }).toThrow(/enchufe disponible/);
+    }).toThrow(/enchufe disponible/i);
     expect(function () {
       validateRequestPayload_(element, Object.assign({}, payload, { tomaAguaDisponible: 'QUIZÁ' }));
-    }).toThrow(/toma de agua disponible/);
+    }).toThrow(/toma de agua disponible/i);
     expect(function () {
       validateRequestPayload_(element, Object.assign({}, payload, { fotoLayout: null }));
     }).toThrow(/Foto.*obligatorio/);
@@ -246,7 +246,7 @@ describe('32_request_service - validateRequestPayload_', function () {
     expect(function () { validateRequestPayload_(element, Object.assign({}, payload)); }).not.toThrow();
     expect(function () {
       validateRequestPayload_(element, Object.assign({}, payload, { enchufeDisponible: 'PENDIENTE' }));
-    }).toThrow(/enchufe disponible/);
+    }).toThrow(/enchufe disponible/i);
     expect(function () {
       validateRequestPayload_(element, Object.assign({}, payload, { fotoCobertura: null }));
     }).toThrow(/Foto.*obligatorio/);
@@ -432,11 +432,10 @@ describe('RequestService - submitRequest', function () {
     expect(global.MailApp.sentEmails[0].to).toBe('ana@diagroup.com');
     expect(global.MailApp.sentEmails[0].body).not.toContain('2099-01-01');
     expect(global.MailApp.sentEmails[0].body).not.toContain('TASK1234567');
-    expect(sheets.Logs._getRawValues()[1].slice(1, 6)).toEqual([
-      'INFO', 'SOLICITUD_REGISTRADA', 'ana@diagroup.com', result.idPeticion,
-      'Solicitud registrada correctamente.'
+    expect(sheets.Logs._getRawValues()[1].slice(1, 5)).toEqual([
+      'INFO', 'SOLICITUD_REGISTRADA', 'ana@diagroup.com', result.idPeticion
     ]);
-    const logContext = JSON.parse(sheets.Logs._getRawValues()[1][6]);
+    const logContext = JSON.parse(sheets.Logs._getRawValues()[1][5]);
     expect(logContext).toEqual({
       etapa: 'NOTIFICACION',
       idElemento: 'CAF-RETIRADA',
@@ -523,7 +522,7 @@ describe('RequestService - submitRequest', function () {
     });
 
     expect(result.success).toBe(false);
-    expect(result.message).toContain('enchufe_disponible');
+    expect(result.message).toContain('Contacta con soporte');
     expect(sheets.Registros._getRawValues()).toHaveLength(1);
     expect(global.MailApp.sentEmails).toHaveLength(0);
   });
@@ -573,15 +572,14 @@ describe('RequestService - submitRequest', function () {
     expect(result.message).toMatch(/deben ser distintas/);
     expect(sheets.Registros._getRawValues()).toHaveLength(1);
     expect(PropertiesService.getScriptProperties().getProperty('ULTIMO_ID_PETICION')).toBeNull();
-    expect(sheets.Logs._getRawValues()[1].slice(1, 6)).toEqual([
-      'AVISO', 'SOLICITUD_RECHAZADA', 'ana@diagroup.com', '',
-      'Solicitud rechazada.'
+    expect(sheets.Logs._getRawValues()[1].slice(1, 5)).toEqual([
+      'AVISO', 'SOLICITUD_RECHAZADA', 'ana@diagroup.com', ''
     ]);
-    expect(JSON.parse(sheets.Logs._getRawValues()[1][6])).toEqual({
+    expect(JSON.parse(sheets.Logs._getRawValues()[1][5])).toEqual({
       etapa: 'VALIDACION',
       idElemento: 'CAF-RETIRADA',
       equipo: 'CAFETERA',
-      tipoGestion: 'MOVIMIENTO'
+      tipoGestion: 'MOVIMIENTO', motivo: 'TIENDAS_IGUALES'
     });
   });
 
@@ -701,7 +699,7 @@ describe('RequestService - submitRequest', function () {
     expect(sheets.Registros._getRawValues()).toHaveLength(2);
     expect(sheets.Logs._getRawValues()[1][2]).toBe('NOTIFICACION_FALLIDA');
     expect(sheets.Logs._getRawValues()[1][4]).toBe(result.idPeticion);
-    expect(JSON.parse(sheets.Logs._getRawValues()[1][6])).toMatchObject({
+    expect(JSON.parse(sheets.Logs._getRawValues()[1][5])).toMatchObject({
       etapa: 'NOTIFICACION', idElemento: 'CAF-RETIRADA', notificacionEnviada: false
     });
   });
@@ -719,7 +717,7 @@ describe('RequestService - submitRequest', function () {
     expect(result.notificationSent).toBe(false);
     expect(result.message).toContain('ASUNTO_EMAIL');
     expect(sheets.Registros._getRawValues()).toHaveLength(2);
-    expect(JSON.parse(sheets.Logs._getRawValues()[1][6])).toMatchObject({
+    expect(JSON.parse(sheets.Logs._getRawValues()[1][5])).toMatchObject({
       etapa: 'NOTIFICACION', idElemento: 'CAF-RETIRADA', notificacionEnviada: false
     });
   });
@@ -1000,7 +998,7 @@ describe('RequestService - submitRequest', function () {
     const result = submitRequest({ idElemento: 'CAF-RETIRADA' });
 
     expect(result.success).toBe(false);
-    expect(result.message).toMatch(/tienda/);
+    expect(result.message).toMatch(/tienda/i);
   });
 
   test('devuelve success=false si no se indica idElemento', function () {
@@ -1029,7 +1027,7 @@ describe('RequestService - submitRequest', function () {
     };
 
     for (let i = 0; i < 10; i++) {
-      expect(submitRequest({ idElemento: 'CAF-RETIRADA' }).message).toMatch(/tienda/);
+      expect(submitRequest({ idElemento: 'CAF-RETIRADA' }).message).toMatch(/tienda/i);
     }
     const readsBeforeBlock = systemReads;
     const blocked = submitRequest({
@@ -1118,7 +1116,7 @@ describe('RequestService - submitRequest', function () {
     expect(result.message).not.toContain('Registros');
     expect(result.message).toMatch(/Contacta con soporte/);
     expect(JSON.stringify(sheets.Logs._getRawValues())).not.toContain('Texto privado');
-    expect(JSON.parse(sheets.Logs._getRawValues()[1][6]).etapa).toBe('REGISTROS');
+    expect(JSON.parse(sheets.Logs._getRawValues()[1][5]).etapa).toBe('REGISTROS');
   });
 
   test('diagnostica una columna obligatoria ausente sin mostrar el esquema al usuario', function () {

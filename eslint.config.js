@@ -57,7 +57,7 @@ const nodeGlobals = {
 };
 
 module.exports = [
-  { ignores: ['node_modules/**', 'coverage/**', 'sheets/**'] },
+  { ignores: ['node_modules/**', 'coverage/**', 'sheets/**', '.staging/**'] },
   js.configs.recommended,
   {
     files: ['src/backend/**/*.js'],

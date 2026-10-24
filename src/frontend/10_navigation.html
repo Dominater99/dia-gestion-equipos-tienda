@@ -12,7 +12,8 @@
       uiText: null,
       submissionSucceeded: false,
       isSubmitting: false,
-      preselectedStoreCode: ''
+      preselectedStoreCode: '',
+      formDrafts: Object.create(null)
     };
 
     const EQUIPMENT_LABELS = {
@@ -42,6 +43,13 @@
 
     function handleAccessResult(result) {
       hideLoading();
+      if (result && result.configurationError) {
+        document.getElementById('noAccessTitle').textContent = 'Configuración de peticiones no válida';
+        document.getElementById('noAccessMessage').textContent = result.message;
+        document.getElementById('requestAccessButton').hidden = true;
+        showScreen('screenNoAccess');
+        return;
+      }
       if (result && result.rateLimited) {
         document.getElementById('noAccessTitle').textContent = 'Demasiadas consultas';
         document.getElementById('noAccessMessage').textContent = result.message;
@@ -140,10 +148,14 @@
       });
     }
 
-    function equipmentHasProviders(equipment) {
-      return elementsForEquipment(equipment).some(function (element) {
-        return Boolean(element.proveedor);
-      });
+    function providersForEquipment_(equipment) {
+      return Array.from(new Set(elementsForEquipment(equipment).map(function (element) {
+        return element.proveedor || '';
+      })));
+    }
+
+    function equipmentNeedsProviderChoice_(equipment) {
+      return providersForEquipment_(equipment).length > 1;
     }
 
     function renderHome() {
@@ -163,10 +175,11 @@
         appState.provider = null;
         appState.currentElement = null;
 
-        if (equipmentHasProviders(appState.equipment)) {
+        if (equipmentNeedsProviderChoice_(appState.equipment)) {
           renderProviders();
           showScreen('screenProvider');
         } else {
+          appState.provider = providersForEquipment_(appState.equipment)[0] || '';
           renderManagementOptions();
           showScreen('screenManagement');
         }
@@ -181,6 +194,7 @@
 
     document.querySelectorAll('[data-back="management"]').forEach(function (button) {
       button.addEventListener('click', function () {
+        rememberFormDraft_();
         showScreen('screenManagement');
       });
     });
@@ -191,17 +205,13 @@
       const grid = document.getElementById('providerGrid');
       grid.replaceChildren();
 
-      const seenProviders = {};
-      elementsForEquipment(appState.equipment).forEach(function (element) {
-        if (!element.proveedor || seenProviders[element.proveedor]) return;
-        seenProviders[element.proveedor] = true;
-
+      providersForEquipment_(appState.equipment).forEach(function (provider) {
         const button = document.createElement('button');
         button.className = 'option-card';
         button.type = 'button';
-        button.textContent = element.proveedor;
+        button.textContent = provider || 'Gestiones generales';
         button.addEventListener('click', function () {
-          appState.provider = element.proveedor;
+          appState.provider = provider;
           renderManagementOptions();
           showScreen('screenManagement');
         });
@@ -210,7 +220,7 @@
     }
 
     document.getElementById('managementBackButton').addEventListener('click', function () {
-      showScreen(equipmentHasProviders(appState.equipment) ? 'screenProvider' : 'screenHome');
+      showScreen(equipmentNeedsProviderChoice_(appState.equipment) ? 'screenProvider' : 'screenHome');
     });
 
     function renderManagementOptions() {
@@ -223,7 +233,7 @@
 
       elementsForEquipment(appState.equipment)
         .filter(function (element) {
-          return !appState.provider || element.proveedor === appState.provider;
+          return appState.provider === null || (element.proveedor || '') === appState.provider;
         })
         .forEach(function (element) {
           const button = document.createElement('button');
@@ -257,6 +267,7 @@
       const fieldName = element.tipo_gestion === 'MOVIMIENTO' ? 'tiendaOrigen' : 'tienda';
       const control = document.getElementById('field-' + fieldName);
       if (!control || typeof control._resolveStore !== 'function') return;
+      if (control.dataset && control.dataset.resolvedCode === appState.preselectedStoreCode) return;
       control.value = appState.preselectedStoreCode;
       control._resolveStore();
     }

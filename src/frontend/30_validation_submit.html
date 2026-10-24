@@ -40,8 +40,9 @@
 
     function getFieldErrorMessage(definition, control) {
       if (definition.type === 'photo') {
+        if (control.dataset.photoError) return control.dataset.photoError;
         if (control.dataset.photoLoading === 'true') return 'La foto se está procesando.';
-        if (!control._photoPayload) return 'El campo Foto es obligatorio.';
+        if (!control._photoPayload && definition.required) return 'El campo Foto es obligatorio.';
         return '';
       }
       const value = control.value.trim();
@@ -52,6 +53,11 @@
         if (value && value < tomorrow) return 'La fecha debe ser posterior a hoy.';
       }
       if (definition.required && !value) return 'Este campo es obligatorio.';
+      if (!value) return '';
+      if (definition.name === 'fechaFin') {
+        const start = document.getElementById('field-fechaInicio');
+        if (start && start.value && value < start.value) return 'La fecha de fin no puede ser anterior a la fecha de inicio.';
+      }
       if (definition.type === 'store') {
         if (!STORE_ID_PATTERN.test(value)) {
           return 'Introduce un código de tienda de 1 a ' + FORM_RULES.storeIdMaxLength + ' dígitos.';
@@ -76,7 +82,7 @@
           return 'Los comentarios no pueden superar ' +
             FORM_RULES.commentMaxLengthDisplay + ' caracteres.';
         }
-        if (!normalizeCommentText(control.value)) return 'Este campo es obligatorio.';
+        if (definition.required && !normalizeCommentText(control.value)) return 'Este campo es obligatorio.';
       }
       if (control.validity && !control.validity.valid) return 'Revisa el valor introducido.';
       return '';
@@ -89,10 +95,40 @@
         button.disabled = true;
         return;
       }
-      button.disabled = !getFormFieldDefinitions(appState.currentElement).every(function (definition) {
+      const definitions = getFormFieldDefinitions(appState.currentElement);
+      const pending = definitions.filter(function (definition) {
         const control = document.getElementById('field-' + definition.name);
-        return control && !getFieldErrorMessage(definition, control);
+        return !control || !!getFieldErrorMessage(definition, control);
       });
+      button.disabled = !definitions.length || pending.length > 0;
+      const summary = document.getElementById('pendingRequirements');
+      if (!summary) return;
+      summary.replaceChildren();
+      if (!definitions.length) {
+        summary.textContent = 'Esta petición no tiene un formulario disponible. Contacta con soporte.';
+      } else if (pending.length) {
+        const intro = document.createElement('p');
+        intro.textContent = 'Para registrar, revisa estos campos:';
+        const list = document.createElement('ul');
+        pending.forEach(function (definition) {
+          const item = document.createElement('li');
+          const action = document.createElement('button');
+          action.type = 'button';
+          action.className = 'field__change';
+          action.textContent = definition.label;
+          action.addEventListener('click', function () {
+            const control = document.getElementById('field-' + definition.name);
+            const focus = control._photoPayload ? control._photoRemove : control._photoFocus || control._choiceFocus || control;
+            focus.focus();
+            showFieldError(control, document.getElementById('error-' + definition.name), getFieldErrorMessage(definition, control));
+          });
+          item.appendChild(action);
+          list.appendChild(item);
+        });
+        summary.append(intro, list);
+      } else {
+        summary.textContent = 'Todos los campos están completos. Puedes registrar la solicitud.';
+      }
     }
 
     function refreshMovementStoreError() {
@@ -112,7 +148,7 @@
       event.preventDefault();
       if (!appState.currentElement || appState.isSubmitting) return;
       const definitions = getFormFieldDefinitions(appState.currentElement);
-      const payload = { idElemento: appState.currentElement.id_elemento };
+      const payload = { idElemento: appState.currentElement.id_elemento, formRevision: appState.currentElement.formRevision };
       let firstInvalid = null;
 
       definitions.forEach(function (definition) {
@@ -125,7 +161,7 @@
         const message = getFieldErrorMessage(definition, control);
 
         showFieldError(control, error, message);
-        if (message && !firstInvalid) firstInvalid = control._photoFocus || control;
+        if (message && !firstInvalid) firstInvalid = control._photoFocus || control._choiceFocus || control;
         payload[definition.name] = definition.type === 'photo'
           ? control._photoPayload
           : control.value.trim();
@@ -148,6 +184,15 @@
     function handleSubmissionResult(result) {
       hideLoading();
       appState.isSubmitting = false;
+      if (result && result.updatedElement) {
+        rememberFormDraft_();
+        const updated = result.updatedElement;
+        appState.elements = appState.elements.map(function (element) {
+          return element.id_elemento === updated.id_elemento ? updated : element;
+        });
+        appState.currentElement = updated;
+        renderForm();
+      }
       refreshSubmitState();
       appState.submissionSucceeded = Boolean(result && result.success);
 
@@ -196,6 +241,7 @@
 
       appState.equipment = null;
       appState.provider = null;
+      delete appState.formDrafts[appState.currentElement.id_elemento];
       appState.currentElement = null;
       document.getElementById('requestForm').reset();
       showScreen('screenHome');

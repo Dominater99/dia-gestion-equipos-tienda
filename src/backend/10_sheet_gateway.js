@@ -11,9 +11,10 @@
  */
 function getSheet_(sheetName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(sheetName);
+  const physicalName = physicalSheetName_(sheetName);
+  const sheet = ss.getSheetByName(physicalName);
   if (!sheet) {
-    throw new Error('No se encuentra la pestaña "' + sheetName + '".');
+    throw new Error('No se encuentra la pestaña "' + physicalName + '".');
   }
   return sheet;
 }
@@ -54,6 +55,7 @@ function readSheetAsObjects_(sheet) {
  * @returns {*|null}
  */
 function getCachedJson_(key) {
+  key = environmentCacheKey_(key);
   const cache = CacheService.getScriptCache();
   const manifestText = cache.get(key);
   if (!manifestText) return null;
@@ -87,6 +89,7 @@ function getCachedJson_(key) {
  * @param {number} ttlSeconds
  */
 function putCachedJson_(key, value, ttlSeconds) {
+  key = environmentCacheKey_(key);
   const cache = CacheService.getScriptCache();
   const serialized = JSON.stringify(value);
   const chunks = [];
@@ -110,6 +113,7 @@ function putCachedJson_(key, value, ttlSeconds) {
  * @param {string} key
  */
 function removeCachedJson_(key) {
+  key = environmentCacheKey_(key);
   const cache = CacheService.getScriptCache();
   const manifestText = cache.get(key);
   if (manifestText) {

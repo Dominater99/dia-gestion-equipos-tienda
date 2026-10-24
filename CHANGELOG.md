@@ -7,6 +7,22 @@ cuando existe una versión publicada.
 
 ### Añadido
 
+- Columna `Elementos.rol_visible`: gestiones para todos los usuarios autorizados o para un rol
+  concreto, con filtro de menú y autorización de búsquedas y altas en servidor. Preparada solo en TEST.
+
+- Captura configurable por opción en `Campos_peticion`: quince campos reutilizables con estado
+  oculto, opcional u obligatorio, orden, etiqueta y ayuda. Un esquema resuelto en servidor
+  gobierna presentación y validación; detecta cambios de requisitos al enviar.
+- Categoría y descripción de Sistema; resolución común de `LOGO_URL` para web y correo,
+  lectura por cabecera y detección de claves duplicadas.
+- Borradores en memoria, requisitos pendientes enlazados al control y radios SI/NO nativos.
+- Preparación de una versión TEST sin despliegue mediante `deploy:test -- --stage-only`.
+
+- Paquete y despliegue TEST independiente con pestañas `TEST_`, correo dirigido exclusivamente
+  al buzón privado de pruebas, caché separada y comprobación de la versión de producción.
+- Pruebas de aislamiento de datos, creación de Logs y destinatarios, y validación de los destinos
+  de publicación. El publicador general detecta destinos ambiguos antes de enviar fuentes.
+
 - Columna opcional `Elementos.email_copia` para añadir destinatarios en copia a las direcciones
   de `EMAIL_CC_SOPORTE` y al solicitante, con listas separadas por comas y sin duplicados.
 - Marcadores `{{delegacion_contacto}}`, `{{delegacion_email_contacto}}` y
@@ -34,6 +50,14 @@ cuando existe una versión publicada.
 - Pruebas de roles permitidos, neutralización de fórmulas, ámbito de tienda y fallo de correo.
 
 ### Cambiado
+
+- Los límites técnicos por ventana pasan a constantes; se mantienen las ventanas abiertas y el
+  cupo diario funcional de Sistema. Las copias TEST se preparan con el esquema nuevo de Logs,
+  sin mensaje redundante y con motivos estructurados; se admite el esquema antiguo.
+- El servidor construye el payload desde los campos públicos y valida todas las columnas de
+  Registros antes de asignar ID. Se impide la inyección de adjuntos internos y se preservan
+  las llaves literales de los comentarios. Los periodos no admiten un fin anterior al inicio.
+- La navegación ofrece gestiones generales junto a proveedores y omite elecciones únicas.
 
 - `Elementos.email_destino` admite varios destinatarios separados por comas, con validación y deduplicación.
 - Movimientos y retiradas de cualquier equipo muestran y registran el campo «Fecha máxima de retirada»; es obligatorio solo para retiradas de lockers.

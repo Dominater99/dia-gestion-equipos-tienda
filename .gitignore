@@ -1,6 +1,8 @@
 node_modules/
 coverage/
 .clasp.json
+.test-environment.json
+.staging/
 *.gsheet
 desktop.ini
 .tmp.drivedownload/

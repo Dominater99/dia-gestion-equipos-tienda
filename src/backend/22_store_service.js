@@ -26,10 +26,7 @@ function lookupStore(storeId, idElemento) {
       throw publicError_('El usuario no tiene acceso a la aplicación.');
     }
 
-    const element = getElementById_(idElemento, cacheConfig);
-    if (!element || String(element.estado).toUpperCase() !== ESTADO_ELEMENTO.ACTIVE) {
-      throw publicError_('La opción seleccionada ya no está disponible.');
-    }
+    const element = getElementForUser_(idElemento, currentUser, cacheConfig);
 
     const store = getStoresForUser_(currentUser, cacheConfig).find(function (candidate) {
       return String(candidate.tienda_id).trim() === code;

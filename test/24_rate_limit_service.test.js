@@ -119,36 +119,42 @@ describe('24_rate_limit_service - límite persistente por usuario', function () 
     });
   });
 
-  test('usa el límite de envíos de Sistema y aplica cambios en la ventana siguiente', function () {
+  test('una ventana ya abierta conserva su umbral hasta vencer; la siguiente aplica las constantes', function () {
+    consumeSubmissionAttempt_('ana@diagroup.com');
+    const key = Object.keys(PropertiesService._dump()).find(function (name) {
+      return name.startsWith(SUBMISSION_RATE_LIMIT.PROPERTY_PREFIX);
+    });
+    PropertiesService.getScriptProperties().setProperty(key, serializeSubmissionRateState_({
+      windowStart: Date.now(), attempts: 1, maxAttempts: 2, windowMs: 60000, limitLogged: false
+    }));
+    consumeSubmissionAttempt_('ana@diagroup.com');
+    expect(function () { consumeSubmissionAttempt_('ana@diagroup.com'); }).toThrow(/límite de intentos/);
+    jest.advanceTimersByTime(60000);
+    consumeSubmissionAttempt_('ana@diagroup.com');
+    expect(parseSubmissionRateState_(PropertiesService.getScriptProperties().getProperty(key)))
+      .toMatchObject({ maxAttempts: 10, windowMs: 600000 });
+  });
+
+  test('las filas heredadas de Sistema no cambian los límites técnicos versionados', function () {
     const sheet = getSheet_(SHEET_NAMES.SISTEMA);
     sheet.appendRow([SYSTEM_PARAM_KEYS.SUBMISSION_ATTEMPTS_LIMIT, 2]);
     sheet.appendRow([SYSTEM_PARAM_KEYS.SUBMISSION_WINDOW_SECONDS, 60]);
-    consumeSubmissionAttempt_('ana@diagroup.com');
-    consumeSubmissionAttempt_('ana@diagroup.com');
-    expect(function () { consumeSubmissionAttempt_('ana@diagroup.com'); })
-      .toThrow(/límite de intentos/);
-    sheet.getRange(2, 2).setValue(3);
-    removeCachedJson_(CACHE_KEYS.SYSTEM);
-    expect(function () { consumeSubmissionAttempt_('ana@diagroup.com'); })
-      .toThrow(/límite de intentos/);
-    jest.advanceTimersByTime(60 * 1000);
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 10; i++) {
       expect(function () { consumeSubmissionAttempt_('ana@diagroup.com'); }).not.toThrow();
     }
     expect(function () { consumeSubmissionAttempt_('ana@diagroup.com'); })
       .toThrow(/límite de intentos/);
   });
 
-  test('usa los umbrales de acceso y tienda de Sistema por separado', function () {
+  test('los límites técnicos de lectura ignoran los umbrales heredados de Sistema', function () {
     const sheet = getSheet_(SHEET_NAMES.SISTEMA);
     sheet.appendRow([SYSTEM_PARAM_KEYS.ACCESS_LOOKUPS_LIMIT, 1]);
     sheet.appendRow([SYSTEM_PARAM_KEYS.STORE_LOOKUPS_LIMIT, 2]);
     sheet.appendRow([SYSTEM_PARAM_KEYS.READ_WINDOW_SECONDS, 60]);
-    consumeReadAttempt_('ana@diagroup.com', 'access');
+    for (let i = 0; i < 30; i++) consumeReadAttempt_('ana@diagroup.com', 'access');
     expect(function () { consumeReadAttempt_('ana@diagroup.com', 'access'); })
       .toThrow(/Demasiadas consultas/);
-    consumeReadAttempt_('ana@diagroup.com', 'store');
-    consumeReadAttempt_('ana@diagroup.com', 'store');
+    for (let i = 0; i < 60; i++) consumeReadAttempt_('ana@diagroup.com', 'store');
     expect(function () { consumeReadAttempt_('ana@diagroup.com', 'store'); })
       .toThrow(/Demasiadas consultas/);
   });

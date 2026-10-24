@@ -50,12 +50,13 @@ instalación si cambia `package-lock.json`.
 
 ## Preparación de la hoja
 
-Prepara manualmente `Sistema`, `Usuarios`, `Tiendas`, `Elementos` y `Registros` con las cabeceras
+Prepara manualmente `Sistema`, `Usuarios`, `Tiendas`, `Elementos`, `Campos_peticion`,
+`Parametros_delegacion` y `Registros` con las cabeceras
 de la [especificación](docs/domain/SPECIFICATION.md). No incluyas `VERSION` en `Sistema`:
 el nombre y la versión están en el código. Ya no hay funciones `setup...` ni se insertan
 datos de ejemplo. La primera alta inicializa el contador de Script Properties para que el
-primer ID nuevo termine en `0002`; si encuentra un contador legado en `Sistema`, conserva
-su valor antes de retirar esa fila. Si falta `Logs`, el primer evento la crea automáticamente.
+primer ID nuevo termine en `0001`. El contador se mantiene únicamente en Script Properties.
+Si falta `Logs`, el primer evento la crea automáticamente.
 Su limpieza diaria sigue siendo manual.
 
 En una instalación existente, conserva las pestañas y sus datos; antes de publicar revisa
@@ -115,6 +116,10 @@ No hay compilación ni `dist/` que generar.
 | `npm run push` | Ejecuta ESLint y tests; si pasan, confirma todos los cambios permitidos, hace `git push` y envía `src/` con clasp. No publica una versión. |
 | `npm run push -- "mensaje"` | Igual, con un mensaje de commit elegido por quien publica. |
 | `npm run open` | Abre el proyecto remoto de Apps Script. |
+| `npm run build:test` | Genera localmente un paquete TEST con configuración privada, sin publicar. |
+| `npm run deploy:test -- --dry-run` | Valida y genera el paquete TEST sin acceder a Google. |
+| `npm run deploy:test -- --stage-only` | Envía TEST y crea una versión preparada sin crear ni actualizar despliegues. |
+| `npm run deploy:test` | Publica exclusivamente la implementación de pruebas y comprueba que producción conserva su versión. |
 
 Antes del primer envío, revisa `git status`: la rama local puede no tener commits y el comando
 confirmará todos los archivos no ignorados del proyecto. `.clasp.json`, `node_modules/` y
@@ -124,6 +129,8 @@ automáticamente si falla un paso posterior.
 
 Consulta [Operación](docs/operations/OPERATIONS.md) y la sección de publicación de la
 [especificación](docs/domain/SPECIFICATION.md) antes de enviar o desplegar.
+El aislamiento mediante pestañas `TEST_`, el buzón único y los estados compartidos se describen
+en [el procedimiento de pruebas](docs/domain/SPECIFICATION.md#111-pruebas-con-pestañas-test_-en-el-mismo-libro).
 
 ## Documentación
 

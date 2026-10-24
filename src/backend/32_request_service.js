@@ -44,12 +44,15 @@ function submitRequest(payload) {
     }
 
     stage = 'ELEMENTO';
-    element = getElementById_(payload.idElemento, cacheConfig);
-    if (!element || String(element.estado).toUpperCase() !== ESTADO_ELEMENTO.ACTIVE) {
-      throw publicError_('La opción seleccionada ya no está disponible. Vuelve a la pantalla de inicio e inténtalo de nuevo.');
-    }
+    element = getElementForUser_(payload.idElemento, currentUser, cacheConfig);
 
     stage = 'VALIDACION';
+    if (element._configuredSchema && payload.formRevision !== element.formRevision) {
+      const changed = publicError_('Los requisitos de esta petición han cambiado. Revisa el formulario actualizado; se han conservado los datos aplicables.', 'FORMULARIO_ACTUALIZADO');
+      changed.updatedElement = publicElement_(element);
+      throw changed;
+    }
+    payload = sanitizeRequestPayload_(element, payload);
     validateRequestPayload_(element, payload);
     getElementEmailMessage_(element);
     const normalizedPayload = normalizeRequestStores_(element, payload, getStoresForUser_(currentUser, cacheConfig));
@@ -72,7 +75,7 @@ function submitRequest(payload) {
     logAppEventSafely_(
       notificationSent ? LOG_EVENTS.REQUEST_REGISTERED : LOG_EVENTS.MAIL_FAILED,
       idPeticion,
-      buildRequestLogContext_(stage, element, notificationSent),
+      buildRequestLogContext_(stage, element, notificationSent, notificationSent ? '' : 'ENVIO_CORREO_FALLIDO'),
       email
     );
 
@@ -108,19 +111,20 @@ function submitRequest(payload) {
     } else if (stage !== 'IDENTIDAD' && stage !== 'LIMITE_ENVIOS') {
       // Un fallo de la barrera no debe añadir una escritura de Sheets por reintento.
       logAppEventSafely_(
-        LOG_EVENTS.REQUEST_REJECTED, idPeticion, buildRequestLogContext_(stage, element), email
+        LOG_EVENTS.REQUEST_REJECTED, idPeticion, buildRequestLogContext_(stage, element, undefined, error.reason || 'ERROR_INTERNO'), email
       );
     }
     return {
       success: false,
       idPeticion: null,
       notificationSent: false,
-      message: publicErrorMessage_(error, 'No se pudo completar la solicitud. Contacta con soporte si persiste.')
+      message: publicErrorMessage_(error, 'No se pudo completar la solicitud. Contacta con soporte si persiste.'),
+      updatedElement: error.updatedElement || null
     };
   }
 }
 
-function buildRequestLogContext_(stage, element, notificationSent) {
+function buildRequestLogContext_(stage, element, notificationSent, reason) {
   const context = { etapa: String(stage || '') };
   if (element) {
     [
@@ -137,6 +141,7 @@ function buildRequestLogContext_(stage, element, notificationSent) {
   if (typeof notificationSent === 'boolean') {
     context.notificacionEnviada = notificationSent;
   }
+  if (reason && /^[A-Z_]{1,60}$/.test(reason)) context.motivo = reason;
   return context;
 }
 
@@ -176,23 +181,12 @@ function sanitizeRequestDiagnostic_(value) {
  * @returns {Object}
  */
 function normalizeRequestStores_(element, payload, visibleStores) {
-  const result = Object.assign({}, payload);
+  const result = sanitizeRequestPayload_(element, payload);
   result.comentarios = normalizeCommentText_(result.comentarios);
   result.codigoServiceNow = String(result.codigoServiceNow || '').trim();
-  if (String(element.requiere_service_now).toUpperCase() !== 'SI') {
-    result.codigoServiceNow = '';
-  }
-  const allowedDates = element.tipo_gestion === TIPOS_GESTION.DESCONEXION_TEMPORAL
-    ? ['fechaInicio', 'fechaFin']
-    : (element.tipo_gestion === TIPOS_GESTION.MOVIMIENTO ||
-      element.tipo_gestion === TIPOS_GESTION.RETIRADA)
-      ? ['fechaMaximaRetirada']
-      : [];
-  ['fechaLimiteRecogida', 'fechaInicio', 'fechaFin', 'fechaMaximaRetirada'].forEach(function (fieldName) {
-    if (allowedDates.indexOf(fieldName) === -1) delete result[fieldName];
+  getElementFields_(element).filter(function (field) { return field.type === 'yes-no'; }).forEach(function (field) {
+    if (result[field.name]) result[field.name] = result[field.name].toUpperCase();
   });
-  normalizeCafeteraNewRequestFields_(element, result);
-  normalizeLockerNewRequestFields_(element, result);
   normalizeRequestPhoto_(element, result);
   result._storeDetails = {};
   const storeFields = element.tipo_gestion === TIPOS_GESTION.MOVIMIENTO
@@ -246,45 +240,36 @@ function normalizeRequestStores_(element, payload, visibleStores) {
  * @param {Object} payload
  */
 function validateRequestPayload_(element, payload) {
-  switch (element.tipo_gestion) {
-    case TIPOS_GESTION.MOVIMIENTO:
-      if (!payload.tiendaOrigen || !payload.tiendaDestino) {
-        throw publicError_('Falta indicar la tienda de origen y la tienda de destino.');
-      }
-      if (String(payload.tiendaOrigen).trim() === String(payload.tiendaDestino).trim()) {
-        throw publicError_('La tienda de origen y la tienda de destino deben ser distintas.');
-      }
-      break;
-    case TIPOS_GESTION.DESCONEXION_TEMPORAL:
-      if (!payload.tienda || !payload.fechaInicio || !payload.fechaFin) {
-        throw publicError_('Falta indicar la tienda, la fecha de inicio y la fecha de fin.');
-      }
-      break;
-    case TIPOS_GESTION.RETIRADA:
-      if (!payload.tienda) {
-        throw publicError_('Falta indicar la tienda.');
-      }
-      if (element.equipo === EQUIPOS.LOCKER && !payload.fechaMaximaRetirada) {
-        throw publicError_('Falta indicar la fecha máxima de retirada.');
-      }
-      break;
-    default:
-      if (!payload.tienda) {
-        throw publicError_('Falta indicar la tienda.');
-      }
+  if (!Object.values(TIPOS_GESTION).includes(element.tipo_gestion)) {
+    throw configurationError_('El tipo de gestión no está admitido.');
   }
-
+  payload = sanitizeRequestPayload_(element, payload);
+  getElementFields_(element).forEach(function (field) {
+    const value = payload[field.name];
+    if (field.type === 'photo') {
+      if (value || field.required) validateSinglePhotoPayloadMetadata_(value);
+      return;
+    }
+    if (field.name === 'codigoServiceNow') {
+      if ((value || field.required) && !SERVICENOW_PATTERN.test(value || '')) {
+        throw publicError_(VALIDATION_MESSAGES.SERVICE_NOW, 'SERVICENOW_INVALIDO');
+      }
+      return;
+    }
+    if (field.type === 'yes-no' && (value || field.required) && !/^(SI|NO)$/.test(String(value || '').toUpperCase())) {
+      throw publicError_('Indica SI o NO en ' + field.label + '.', 'DISPONIBILIDAD_REQUERIDA');
+    }
+    if (field.required && !String(value || '').trim()) {
+      throw publicError_('El campo ' + field.label + ' es obligatorio.',
+        field.name === 'comentarios' ? 'COMENTARIO_REQUERIDO' : 'CAMPO_REQUERIDO');
+    }
+  });
+  if (element.tipo_gestion === TIPOS_GESTION.MOVIMIENTO && payload.tiendaOrigen === payload.tiendaDestino) {
+    throw publicError_('La tienda de origen y la tienda de destino deben ser distintas.', 'TIENDAS_IGUALES');
+  }
   validateFutureDates_(payload);
-  validateCafeteraNewRequestFields_(element, payload);
-  validateLockerNewRequestFields_(element, payload);
-  validatePhotoPayloadMetadata_(element, payload);
-
-  const codigo = String(payload.codigoServiceNow || '').trim();
-  if (
-    (String(element.requiere_service_now).toUpperCase() === 'SI' || codigo) &&
-    !SERVICENOW_PATTERN.test(codigo)
-  ) {
-    throw publicError_(VALIDATION_MESSAGES.SERVICE_NOW);
+  if (payload.fechaInicio && payload.fechaFin && payload.fechaFin < payload.fechaInicio) {
+    throw publicError_('La fecha de fin no puede ser anterior a la fecha de inicio.', 'INTERVALO_INVALIDO');
   }
 
   const rawComments = String(payload.comentarios || '');
@@ -292,8 +277,8 @@ function validateRequestPayload_(element, payload) {
     throw publicError_(VALIDATION_MESSAGES.COMMENT_LIMIT);
   }
   const comments = normalizeCommentText_(rawComments);
-  if (!comments) {
-    throw publicError_('El campo Comentarios es obligatorio.');
+  if (!comments && getElementFields_(element).some(function (field) { return field.name === 'comentarios' && field.required; })) {
+    throw publicError_('El campo Comentarios es obligatorio.', 'COMENTARIO_REQUERIDO');
   }
   if (comments.length > MAX_COMMENT_LENGTH) {
     throw publicError_(VALIDATION_MESSAGES.COMMENT_LIMIT);
@@ -311,58 +296,17 @@ function isLockerNewRequest_(element) {
 }
 
 function photoFieldNames_(element) {
-  if (element && element.equipo === EQUIPOS.CAFETERA &&
-      element.tipo_gestion === TIPOS_GESTION.ERROR_PANTALLA) {
-    return ['foto'];
-  }
-  if (isCafeteraNewRequest_(element)) return ['fotoUbicacion', 'fotoLayout'];
-  return isLockerNewRequest_(element)
-    ? ['fotoHorario', 'fotoCobertura', 'fotoUbicacion', 'fotoLayout']
-    : [];
+  return element ? getElementFields_(element).filter(function (field) { return field.type === 'photo'; })
+    .map(function (field) { return field.name; }) : [];
 }
 
 function requiresPhoto_(element) {
   return photoFieldNames_(element).length > 0;
 }
 
-function validateCafeteraNewRequestFields_(element, payload) {
-  if (!isCafeteraNewRequest_(element)) return;
-  if (!/^(SI|NO)$/.test(String(payload.enchufeDisponible || '').trim().toUpperCase())) {
-    throw publicError_(VALIDATION_MESSAGES.POWER_OUTLET);
-  }
-  if (!/^(SI|NO)$/.test(String(payload.tomaAguaDisponible || '').trim().toUpperCase())) {
-    throw publicError_(VALIDATION_MESSAGES.WATER_OUTLET);
-  }
-}
-
-function normalizeCafeteraNewRequestFields_(element, payload) {
-  if (isCafeteraNewRequest_(element)) {
-    payload.enchufeDisponible = String(payload.enchufeDisponible).trim().toUpperCase();
-    payload.tomaAguaDisponible = String(payload.tomaAguaDisponible).trim().toUpperCase();
-    return;
-  }
-  if (!isLockerNewRequest_(element)) {
-    delete payload.enchufeDisponible;
-    delete payload.tomaAguaDisponible;
-  }
-}
-
-function validateLockerNewRequestFields_(element, payload) {
-  if (!isLockerNewRequest_(element)) return;
-  if (!/^(SI|NO)$/.test(String(payload.enchufeDisponible || '').trim().toUpperCase())) {
-    throw publicError_(VALIDATION_MESSAGES.POWER_OUTLET);
-  }
-}
-
-function normalizeLockerNewRequestFields_(element, payload) {
-  if (!isLockerNewRequest_(element)) return;
-  payload.enchufeDisponible = String(payload.enchufeDisponible).trim().toUpperCase();
-  delete payload.tomaAguaDisponible;
-}
-
 function validatePhotoPayloadMetadata_(element, payload) {
-  photoFieldNames_(element).forEach(function (fieldName) {
-    validateSinglePhotoPayloadMetadata_(payload[fieldName]);
+  getElementFields_(element).filter(function (field) { return field.type === 'photo'; }).forEach(function (field) {
+    if (payload[field.name] || field.required) validateSinglePhotoPayloadMetadata_(payload[field.name]);
   });
 }
 
@@ -407,6 +351,8 @@ function isValidBase64_(value) {
 }
 
 function normalizeRequestPhoto_(element, payload) {
+  delete payload._photoAttachments;
+  delete payload._photoAttachment;
   const photoFields = photoFieldNames_(element);
   const sourcePhotos = {};
   ['foto', 'fotoHorario', 'fotoCobertura', 'fotoUbicacion', 'fotoLayout'].forEach(function (fieldName) {
@@ -415,7 +361,7 @@ function normalizeRequestPhoto_(element, payload) {
   });
   if (!photoFields.length) return;
 
-  const attachments = photoFields.map(function (fieldName) {
+  const attachments = photoFields.filter(function (fieldName) { return !!sourcePhotos[fieldName]; }).map(function (fieldName) {
     const photo = sourcePhotos[fieldName];
     const mimeType = String(photo.mimeType || '').trim().toLowerCase();
     let bytes;
@@ -472,10 +418,10 @@ function validateFutureDates_(payload) {
     if (rawValue === undefined || rawValue === null || rawValue === '') return;
     const value = String(rawValue).trim();
     if (!isValidIsoDate_(value)) {
-      throw publicError_('La ' + field[1] + ' no es válida. Usa el formato AAAA-MM-DD.');
+      throw publicError_('La ' + field[1] + ' no es válida. Usa el formato AAAA-MM-DD.', 'FECHA_INVALIDA');
     }
     if (value <= today) {
-      throw publicError_('La ' + field[1] + ' debe ser posterior a hoy.');
+      throw publicError_('La ' + field[1] + ' debe ser posterior a hoy.', 'FECHA_NO_FUTURA');
     }
   });
 }
@@ -529,15 +475,8 @@ function registerRequest_(element, payload, currentUser, systemParams) {
       timestamp: headers.indexOf('timestamp_registro'),
       email: headers.indexOf('email_usuario')
     };
-    if (indexes.id < 0 || indexes.timestamp < 0 || indexes.email < 0) {
+    if (REGISTRO_COLUMNS.some(function (name) { return !headers.includes(name); })) {
       throw new Error('Faltan columnas obligatorias en Registros. Revisa la cabecera de la hoja.');
-    }
-    if (isCafeteraNewRequest_(element) &&
-        (headers.indexOf('enchufe_disponible') < 0 || headers.indexOf('toma_agua_disponible') < 0)) {
-      throw publicError_('Faltan las columnas enchufe_disponible y toma_agua_disponible en Registros.');
-    }
-    if (isLockerNewRequest_(element) && headers.indexOf('enchufe_disponible') < 0) {
-      throw publicError_('Falta la columna enchufe_disponible en Registros.');
     }
 
     const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
@@ -637,7 +576,7 @@ function parseRequestCounter_(value, source) {
  * @returns {Object}
  */
 function buildRegistroRow_(element, payload, currentUser, idPeticion) {
-  return {
+  const record = {
     id_peticion: idPeticion,
     timestamp_registro: new Date(),
     email_usuario: currentUser.email,
@@ -649,19 +588,16 @@ function buildRegistroRow_(element, payload, currentUser, idPeticion) {
     proveedor: element.proveedor || '',
     tipo_gestion: element.tipo_gestion,
     subtipo: element.subtipo || '',
-    tienda: payload.tienda || '',
-    tienda_origen: payload.tiendaOrigen || '',
-    tienda_destino: payload.tiendaDestino || '',
     fecha_limite_recogida: payload.fechaLimiteRecogida || '',
-    fecha_inicio: payload.fechaInicio || '',
-    fecha_fin: payload.fechaFin || '',
-    fecha_maxima_retirada: payload.fechaMaximaRetirada || '',
-    necesita_codigo_servicenow: element.requiere_service_now || 'NO',
-    codigo_servicenow: payload.codigoServiceNow || '',
-    comentarios: payload.comentarios || '',
-    enchufe_disponible: payload.enchufeDisponible || '',
-    toma_agua_disponible: payload.tomaAguaDisponible || ''
+    necesita_codigo_servicenow: getElementFields_(element).some(function (field) {
+      return field.name === 'codigoServiceNow' && field.required;
+    }) ? 'SI' : 'NO'
   };
+  Object.keys(FORM_FIELD_CATALOG).forEach(function (key) {
+    const field = FORM_FIELD_CATALOG[key];
+    if (field.type !== 'photo') record[key] = payload[field.name] || '';
+  });
+  return record;
 }
 
 if (typeof module !== 'undefined') {
@@ -679,10 +615,6 @@ if (typeof module !== 'undefined') {
     isLockerNewRequest_,
     photoFieldNames_,
     requiresPhoto_,
-    validateCafeteraNewRequestFields_,
-    normalizeCafeteraNewRequestFields_,
-    validateLockerNewRequestFields_,
-    normalizeLockerNewRequestFields_,
     validatePhotoPayloadMetadata_,
     validateSinglePhotoPayloadMetadata_,
     isValidBase64_,
